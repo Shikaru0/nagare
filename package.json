@@ -5,7 +5,8 @@
   "private": false,
   "scripts": {
     "dev": "bunx vite",
-    "build": "bunx vite build"
+    "build": "bunx vite build",
+    "start": "bun run src/index.ts"
   },
   "devDependencies": {
     "@sveltejs/vite-plugin-svelte": "^7.3.1",
