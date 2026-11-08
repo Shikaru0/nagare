@@ -3,9 +3,16 @@
   "module": "src/index.ts",
   "type": "module",
   "private": false,
+  "scripts": {
+    "dev": "bunx vite",
+    "build": "bunx vite build"
+  },
   "devDependencies": {
+    "@sveltejs/vite-plugin-svelte": "^7.3.1",
     "@types/bun": "latest",
-    "@types/node": "^26.6.6"
+    "@types/node": "^26.6.6",
+    "svelte": "^5.57.3",
+    "vite": "^8.3.6"
   },
   "peerDependencies": {
     "typescript": "^7.0.2"
