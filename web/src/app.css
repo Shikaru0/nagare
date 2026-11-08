@@ -30,8 +30,12 @@ body {
   letter-spacing: 0.05em;
 }
 
-.muted { color: var(--color-mute); }
-.error { color: var(--color-err); }
+.muted {
+  color: var(--color-mute);
+}
+.error {
+  color: var(--color-err);
+}
 
 .btn {
   border: none;
@@ -116,8 +120,8 @@ body {
   color: var(--color-mute);
 }
 
-.card:hover { 
-  transform: translateY(-2px); 
+.card:hover {
+  transform: translateY(-2px);
 }
 
 /* detail */

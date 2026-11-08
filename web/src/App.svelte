@@ -1,9 +1,9 @@
 <script lang="ts">
-  import { path, matchRoute } from "./lib/router";
-  import Home from "./pages/Home.svelte";
-  import AnimeDetail from "./pages/AnimeDetail.svelte";
+import { matchRoute, path } from "./lib/router";
+import AnimeDetail from "./pages/AnimeDetail.svelte";
+import Home from "./pages/Home.svelte";
 
-  let route = $derived(matchRoute($path));
+let route = $derived(matchRoute($path));
 </script>
 
 {#if route.name === "anime"}

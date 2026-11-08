@@ -1,24 +1,24 @@
 <script lang="ts">
-  import { searchAnime, type AnimeSummary } from "../../../src/anilist";
-  import AnimeCard from "../components/AnimeCard.svelte";
+import { type AnimeSummary, searchAnime } from "../../../src/anilist";
+import AnimeCard from "../components/AnimeCard.svelte";
 
-  let query = $state("");
-  let results = $state<AnimeSummary[]>([]);
-  let loading = $state(false);
-  let error = $state<string | null>(null);
+let query = $state("");
+let results = $state<AnimeSummary[]>([]);
+let loading = $state(false);
+let error = $state<string | null>(null);
 
-  async function search() {
-    if (!query.trim()) return;
-    loading = true;
-    error = null;
-    try {
-      results = await searchAnime(query);
-    } catch (e) {
-      error = e instanceof Error ? e.message : String(e);
-    } finally {
-      loading = false;
-    }
+async function search() {
+  if (!query.trim()) return;
+  loading = true;
+  error = null;
+  try {
+    results = await searchAnime(query);
+  } catch (e) {
+    error = e instanceof Error ? e.message : String(e);
+  } finally {
+    loading = false;
   }
+}
 </script>
 
 <main class="wrap">

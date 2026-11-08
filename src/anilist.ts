@@ -38,7 +38,7 @@ export function searchAnime(q: string) {
         }
       }
     }`,
-    { search: q }
+    { search: q },
   ).then((d) => d.Page.media);
 }
 
@@ -53,6 +53,6 @@ export function getAnime(id: number) {
         genres status
       }
     }`,
-    { id }
+    { id },
   ).then((d) => d.Media);
 }

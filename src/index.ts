@@ -8,7 +8,7 @@ const json = (data: unknown, status = 200) =>
     headers: { "Content-Type": "application/json" },
   });
 
-import { searchAnime, getAnime } from "./anilist";
+import { getAnime, searchAnime } from "./anilist";
 
 Bun.serve({
   port,

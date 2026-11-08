@@ -1,27 +1,30 @@
 <script lang="ts">
-  import { getAnime, type AnimeDetail } from "../../../src/anilist";
-  import { navigate } from "../lib/router";
+import { type AnimeDetail, getAnime } from "../../../src/anilist";
+import { navigate } from "../lib/router";
 
-  let { id }: { id: number } = $props();
+let { id }: { id: number } = $props();
 
-  let anime = $state<AnimeDetail | null>(null);
-  let loading = $state(true);
-  let error = $state<string | null>(null);
+let anime = $state<AnimeDetail | null>(null);
+let loading = $state(true);
+let error = $state<string | null>(null);
 
-  $effect(() => {
-    id;
-    loading = true;
-    error = null;
-    getAnime(id)
-      .then((a) => (anime = a))
-      .catch((e) => (error = e instanceof Error ? e.message : String(e)))
-      .finally(() => (loading = false));
-  });
+$effect(() => {
+  id;
+  loading = true;
+  error = null;
+  getAnime(id)
+    .then((a) => (anime = a))
+    .catch((e) => (error = e instanceof Error ? e.message : String(e)))
+    .finally(() => (loading = false));
+});
 
-  function stripHtml(s: string | null) {
-    if (!s) return "";
-    return s.replace(/<[^>]+>/g, "").replace(/\n/g, " ").trim();
-  }
+function stripHtml(s: string | null) {
+  if (!s) return "";
+  return s
+    .replace(/<[^>]+>/g, "")
+    .replace(/\n/g, " ")
+    .trim();
+}
 </script>
 
 <main class="wrap">

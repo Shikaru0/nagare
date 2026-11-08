@@ -2,7 +2,7 @@
 import { writable } from "svelte/store";
 
 export const path = writable(
-  typeof window !== "undefined" ? window.location.pathname : "/"
+  typeof window !== "undefined" ? window.location.pathname : "/",
 );
 
 export function navigate(to: string) {

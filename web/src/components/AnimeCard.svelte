@@ -1,14 +1,14 @@
 <script lang="ts">
-  import type { AnimeSummary } from "../../../src/anilist";
-  import { navigate } from "../lib/router";
+import type { AnimeSummary } from "../../../src/anilist";
+import { navigate } from "../lib/router";
 
-  let { anime }: { anime: AnimeSummary } = $props();
+let { anime }: { anime: AnimeSummary } = $props();
 
-  function click(e: MouseEvent) {
-    if (e.metaKey || e.ctrlKey || e.shiftKey || e.button !== 0) return;
-    e.preventDefault();
-    navigate(`/anime/${anime.id}`);
-  }
+function click(e: MouseEvent) {
+  if (e.metaKey || e.ctrlKey || e.shiftKey || e.button !== 0) return;
+  e.preventDefault();
+  navigate(`/anime/${anime.id}`);
+}
 </script>
 
 <a class="card" href={`/anime/${anime.id}`} onclick={click}>
