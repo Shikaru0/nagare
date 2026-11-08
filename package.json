@@ -4,7 +4,7 @@
   "type": "module",
   "private": false,
   "scripts": {
-    "dev": "bunx vite",
+    "dev": "concurrently -n api,web -c blue,magenta \"bun run src/index.ts\" \"bunx vite\"",
     "build": "bunx vite build",
     "start": "bun run src/index.ts"
   },
@@ -12,6 +12,7 @@
     "@sveltejs/vite-plugin-svelte": "^7.3.1",
     "@types/bun": "latest",
     "@types/node": "^26.6.6",
+    "concurrently": "^10.0.7",
     "svelte": "^5.57.3",
     "vite": "^8.3.6"
   },
