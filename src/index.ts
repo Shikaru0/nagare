@@ -1,4 +1,4 @@
-const port = Number(process.env.PORT ?? 4000);
+const port = Number(process.env.PORT ?? 4141);
 const distDir = `${import.meta.dir}/../dist`;
 
 const notFound = () => new Response("not found", { status: 404 });

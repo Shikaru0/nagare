@@ -6,7 +6,7 @@ export default defineConfig({
   root: "web",
   plugins: [svelte(), tailwind()],
   server: {
-    proxy: { "/api": "http://localhost:4000" },
+    proxy: { "/api": "http://localhost:4141" },
   },
   build: {
     outDir: "../dist",
