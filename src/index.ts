@@ -9,6 +9,7 @@ const json = (data: unknown, status = 200) =>
   });
 
 import { getAnime, searchAnime } from "./anilist";
+import { findEpisodes } from "./providers";
 
 Bun.serve({
   port,
@@ -34,6 +35,17 @@ Bun.serve({
         } catch (e) {
           return json({ error: e instanceof Error ? e.message : String(e) }, 500);
         }
+      }
+      if (url.pathname === "/api/episodes") {
+        const anilistId = Number(url.searchParams.get("anilistId"));
+        const title = url.searchParams.get("title")?.trim();
+        if (!anilistId || !title) {
+          return json({ error: "missing ?anilistId= and ?title=" }, 400);
+        }
+        // soft-fail: never 500, always return {episodes:[]} so the
+        // frontend can show "no streams found" without throwing
+        const result = await findEpisodes({ anilistId, title });
+        return json(result);
       }
       return notFound();
     }
