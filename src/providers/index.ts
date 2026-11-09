@@ -30,7 +30,6 @@ export async function findEpisodes(ref: AnimeRef): Promise<EpisodeResult> {
         return { provider: p.name, episodes: eps };
       }
     } catch (e) {
-      // provider failed; try next one, but record the error for debugging
       errors.push(`${p.name}: ${e instanceof Error ? e.message : String(e)}`);
     }
   }

@@ -7,6 +7,8 @@ type Episode = {
   number: number;
   title?: string;
   isFiller?: boolean;
+  animeId?: number;
+  slug?: string;
 };
 
 let { id }: { id: number } = $props();
@@ -100,7 +102,9 @@ function stripHtml(s: string | null) {
           {#each episodes as ep (ep.id)}
             <a
               class="episode"
-              href={`/watch/${ep.id}`}
+              href={ep.animeId && ep.slug
+                ? `/watch/${provider}/${ep.animeId}/${ep.slug}/${ep.id}`
+                : `/watch/${ep.id}`}
               title={ep.title ?? `Episode ${ep.number}`}
             >
               <span class="ep-num">{ep.number}</span>

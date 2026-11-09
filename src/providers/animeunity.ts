@@ -140,24 +140,24 @@ async function findEpisodes(ref: AnimeRef): Promise<Episode[] | null> {
 }
 
 // Stream extraction:
-// 1. Fetch anime page, extract embed_url (vixcloud.cc/embed/{scws_id}?token=...)
-// 2. Find the episode's scws_id from the episodes JSON
-// 3. Replace scws_id in embed URL, fetch vixcloud embed page
-// 4. Extract playlist URL (vixcloud.cc/playlist/{scws_id}) from the page
+// 1. Fetch /embed-url/{episodeId} — AU's own API, returns a fresh vixcloud
+//    embed URL with a per-episode token. (The embed_url on the anime page
+//    is hardcoded to ep 1's token — swapping scws_id breaks other eps.)
+// 2. Fetch the vixcloud embed page (Referer: animeunity)
+// 3. Extract HLS playlist URL (preferred) + MP4 downloadUrl (fallback)
+//    Both go through /api/proxy in the frontend to bypass CORS.
 async function getStream(req: StreamRequest): Promise<StreamResult> {
-  const html = await fetchHtml(`${BASE}/anime/${req.animeId}-${req.slug}`);
-
-  const embedMatch = html.match(/embed_url="([^"]+)"/);
-  if (!embedMatch?.[1]) throw new Error("AU: no embed_url on anime page");
-  const embedUrl = decodeHtml(embedMatch[1]);
-
-  const epMatch = html.match(/<video-player[^>]*\bepisodes=(['"])(.+?)\1/);
-  if (!epMatch?.[2]) throw new Error("AU: no episodes JSON");
-  const episodes = JSON.parse(decodeHtml(epMatch[2])) as AuEpisode[];
-  const ep = episodes.find((e) => String(e.id) === req.episodeId);
-  if (!ep?.scws_id) throw new Error(`AU: episode ${req.episodeId} has no scws_id`);
-
-  const streamEmbedUrl = embedUrl.replace(/\/embed\/\d+/, `/embed/${ep.scws_id}`);
+  const s = await getSession();
+  const embedRes = await fetch(`${BASE}/embed-url/${req.episodeId}`, {
+    headers: {
+      ...HEADERS,
+      "X-Requested-With": "XMLHttpRequest",
+      Cookie: s.cookies,
+      Referer: `${BASE}/anime/${req.animeId}-${req.slug}`,
+    },
+  });
+  if (!embedRes.ok) throw new Error(`AU: embed-url ${embedRes.status}`);
+  const streamEmbedUrl = (await embedRes.text()).trim();
 
   const vixRes = await fetch(streamEmbedUrl, {
     headers: { ...HEADERS, Referer: `${BASE}/` },
@@ -165,12 +165,27 @@ async function getStream(req: StreamRequest): Promise<StreamResult> {
   if (!vixRes.ok) throw new Error(`AU: vixcloud fetch ${vixRes.status}`);
   const vixHtml = await vixRes.text();
 
+  // HLS: playlist URL + token+expires from the embed page JS.
+  // Currently 403s on direct fetch (vixcloud has session-bound auth we
+  // haven't cracked yet) — but we still return it so the frontend can
+  // try, then fall back to mp4.
   const playlistMatch = vixHtml.match(
     /url:\s*['"](https:\/\/vixcloud\.cc\/playlist\/\d+)['"]/,
   );
-  if (!playlistMatch?.[1]) throw new Error("AU: no playlist URL in vixcloud page");
+  const token = vixHtml.match(/['"]token['"]\s*:\s*['"]([a-f0-9]+)['"]/)?.[1];
+  const expires = vixHtml.match(/['"]expires['"]\s*:\s*['"](\d+)['"]/)?.[1];
+  const hls =
+    playlistMatch?.[1] && token && expires
+      ? `${playlistMatch[1]}?token=${token}&expires=${expires}`
+      : undefined;
 
-  return { url: playlistMatch[1], referer: "https://vixcloud.cc/" };
+  // MP4: direct downloadUrl on vix-content.net CDN — no auth needed,
+  // works as a reliable fallback (single quality, Italian hardsubs).
+  const mp4 = vixHtml.match(/downloadUrl\s*=\s*['"]([^'"]+)['"]/)?.[1];
+
+  if (!hls && !mp4) throw new Error("AU: no stream URLs in vixcloud page");
+
+  return { hls, mp4, referer: "https://vixcloud.cc/" };
 }
 
 export const animeUnityProvider: Provider = {

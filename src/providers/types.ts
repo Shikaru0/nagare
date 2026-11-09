@@ -1,4 +1,4 @@
-// Provider-agnostic episode interface.
+// Provider-agnostic episode + stream interface.
 
 export type Episode = {
   id: string;
@@ -21,8 +21,11 @@ export type StreamRequest = {
   episodeId: string;
 };
 
+// HLS preferred (multi-quality, switchable subs), MP4 fallback (single
+// quality, hardsubs). Provider returns whatever it can — at least one.
 export type StreamResult = {
-  url: string;
+  hls?: string;
+  mp4?: string;
   referer: string;
 };
 
