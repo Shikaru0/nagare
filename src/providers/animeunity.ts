@@ -1,7 +1,7 @@
 // AnimeUnity scraper. Behind Cloudflare + Laravel CSRF — fetch homepage
 // for a session cookie + csrf token, send both on the search POST.
 
-import type { AnimeRef, Episode, Provider } from "./types";
+import type { AnimeRef, Episode, Provider, StreamRequest, StreamResult } from "./types";
 
 const BASE = "https://www.animeunity.co";
 
@@ -89,6 +89,13 @@ function decodeHtml(s: string): string {
     .replace(/&amp;/g, "&"); // last to avoid double-decoding &amp;quot;
 }
 
+type AuEpisode = {
+  id: string | number;
+  number: number;
+  file_name?: string;
+  scws_id?: number;
+};
+
 async function auEpisodes(record: AuRecord): Promise<Episode[]> {
   const html = await fetchHtml(`${BASE}/anime/${record.id}-${record.slug}`);
   const m = html.match(/<video-player[^>]*\bepisodes=(['"])(.+?)\1/);
@@ -96,7 +103,7 @@ async function auEpisodes(record: AuRecord): Promise<Episode[]> {
   if (!raw) throw new Error("AU: no <video-player episodes> found");
 
   const json = decodeHtml(raw);
-  let parsed: Array<{ id: string | number; number: number; file_name?: string }>;
+  let parsed: AuEpisode[];
   try {
     parsed = JSON.parse(json);
   } catch {
@@ -107,6 +114,8 @@ async function auEpisodes(record: AuRecord): Promise<Episode[]> {
     id: String(e.id),
     number: e.number,
     title: e.file_name ?? undefined,
+    animeId: record.id,
+    slug: record.slug,
   }));
 }
 
@@ -130,7 +139,42 @@ async function findEpisodes(ref: AnimeRef): Promise<Episode[] | null> {
   return auEpisodes(picked);
 }
 
+// Stream extraction:
+// 1. Fetch anime page, extract embed_url (vixcloud.cc/embed/{scws_id}?token=...)
+// 2. Find the episode's scws_id from the episodes JSON
+// 3. Replace scws_id in embed URL, fetch vixcloud embed page
+// 4. Extract playlist URL (vixcloud.cc/playlist/{scws_id}) from the page
+async function getStream(req: StreamRequest): Promise<StreamResult> {
+  const html = await fetchHtml(`${BASE}/anime/${req.animeId}-${req.slug}`);
+
+  const embedMatch = html.match(/embed_url="([^"]+)"/);
+  if (!embedMatch?.[1]) throw new Error("AU: no embed_url on anime page");
+  const embedUrl = decodeHtml(embedMatch[1]);
+
+  const epMatch = html.match(/<video-player[^>]*\bepisodes=(['"])(.+?)\1/);
+  if (!epMatch?.[2]) throw new Error("AU: no episodes JSON");
+  const episodes = JSON.parse(decodeHtml(epMatch[2])) as AuEpisode[];
+  const ep = episodes.find((e) => String(e.id) === req.episodeId);
+  if (!ep?.scws_id) throw new Error(`AU: episode ${req.episodeId} has no scws_id`);
+
+  const streamEmbedUrl = embedUrl.replace(/\/embed\/\d+/, `/embed/${ep.scws_id}`);
+
+  const vixRes = await fetch(streamEmbedUrl, {
+    headers: { ...HEADERS, Referer: `${BASE}/` },
+  });
+  if (!vixRes.ok) throw new Error(`AU: vixcloud fetch ${vixRes.status}`);
+  const vixHtml = await vixRes.text();
+
+  const playlistMatch = vixHtml.match(
+    /url:\s*['"](https:\/\/vixcloud\.cc\/playlist\/\d+)['"]/,
+  );
+  if (!playlistMatch?.[1]) throw new Error("AU: no playlist URL in vixcloud page");
+
+  return { url: playlistMatch[1], referer: "https://vixcloud.cc/" };
+}
+
 export const animeUnityProvider: Provider = {
   name: "animeunity",
   findEpisodes,
+  getStream,
 };

@@ -1,23 +1,35 @@
 // Provider-agnostic episode interface.
 
 export type Episode = {
-  id: string; // provider-specific episode id, used for the watch endpoint
+  id: string;
   number: number;
   title?: string;
   isFiller?: boolean;
   thumbnail?: string;
+  animeId?: number;
+  slug?: string;
 };
 
-// What providers need to find the right anime. anilistId is preferred (exact match);
-// title is a fallback for providers that don't support IDs.
 export type AnimeRef = {
   anilistId: number;
   title: string;
 };
 
+export type StreamRequest = {
+  animeId: number;
+  slug: string;
+  episodeId: string;
+};
+
+export type StreamResult = {
+  url: string;
+  referer: string;
+};
+
 export type Provider = {
   name: string;
   findEpisodes(ref: AnimeRef): Promise<Episode[] | null>;
+  getStream(req: StreamRequest): Promise<StreamResult>;
 };
 
 export type EpisodeResult = {

@@ -9,7 +9,7 @@ const json = (data: unknown, status = 200) =>
   });
 
 import { getAnime, searchAnime } from "./anilist";
-import { findEpisodes } from "./providers";
+import { findEpisodes, getProvider } from "./providers";
 
 Bun.serve({
   port,
@@ -46,6 +46,20 @@ Bun.serve({
         // frontend can show "no streams found" without throwing
         const result = await findEpisodes({ anilistId, title });
         return json(result);
+      }
+      if (url.pathname === "/api/stream") {
+        const provider = getProvider(url.searchParams.get("provider") ?? "");
+        const animeId = Number(url.searchParams.get("animeId"));
+        const slug = url.searchParams.get("slug")?.trim();
+        const episodeId = url.searchParams.get("episodeId")?.trim();
+        if (!provider || !animeId || !slug || !episodeId) {
+          return json({ error: "missing ?provider=&animeId=&slug=&episodeId=" }, 400);
+        }
+        try {
+          return json(await provider.getStream({ animeId, slug, episodeId }));
+        } catch (e) {
+          return json({ error: e instanceof Error ? e.message : String(e) }, 500);
+        }
       }
       return notFound();
     }

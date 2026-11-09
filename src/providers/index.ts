@@ -3,9 +3,20 @@
 import { animeUnityProvider } from "./animeunity";
 import type { AnimeRef, EpisodeResult, Provider } from "./types";
 
-export type { AnimeRef, Episode, EpisodeResult, Provider } from "./types";
+export type {
+  AnimeRef,
+  Episode,
+  EpisodeResult,
+  Provider,
+  StreamRequest,
+  StreamResult,
+} from "./types";
 
 export const providers: Provider[] = [animeUnityProvider];
+
+export function getProvider(name: string): Provider | undefined {
+  return providers.find((p) => p.name === name);
+}
 
 // Try each provider in order. Returns the first non-empty result.
 // If all providers error or return null, returns empty episodes with error.
