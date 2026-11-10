@@ -7,6 +7,12 @@
   } from "../../../src/anilist";
   import AnimeCard from "../components/AnimeCard.svelte";
   import { navigate } from "../lib/router";
+  import {
+    continueAnime,
+    continueManga,
+    type AnimeProgress,
+    type MangaProgress,
+  } from "../lib/progress";
 
   type Result = (AnimeSummary | MangaSummary) & { _kind: "anime" | "manga" };
 
@@ -15,6 +21,14 @@
   let results = $state<Result[]>([]);
   let loading = $state(false);
   let error = $state<string | null>(null);
+
+  // Continue rails — populated once on mount from localStorage.
+  let animeRail = $state<AnimeProgress[]>([]);
+  let mangaRail = $state<MangaProgress[]>([]);
+  $effect(() => {
+    animeRail = continueAnime();
+    mangaRail = continueManga();
+  });
 
   async function search() {
     if (!query.trim()) return;
@@ -36,10 +50,75 @@
     e.preventDefault();
     navigate(`/${item._kind}/${item.id}`);
   }
+
+  // Click on a continue-rail entry → resume straight into the watch/read page.
+  function clickContinueAnime(e: MouseEvent, p: AnimeProgress) {
+    if (e.metaKey || e.ctrlKey || e.shiftKey || e.button !== 0) return;
+    e.preventDefault();
+    navigate(`/anime/${p.anilistId}`);
+  }
+  function clickContinueManga(e: MouseEvent, p: MangaProgress) {
+    if (e.metaKey || e.ctrlKey || e.shiftKey || e.button !== 0) return;
+    e.preventDefault();
+    navigate(`/manga/${p.anilistId}`);
+  }
+
+  function fmtSecs(s: number): string {
+    if (!s || Number.isNaN(s)) return "";
+    const m = Math.floor(s / 60);
+    const r = Math.floor(s % 60);
+    return `${m}:${r.toString().padStart(2, "0")}`;
+  }
 </script>
 
 <main class="wrap">
   <h1>nagare</h1>
+
+  {#if animeRail.length > 0}
+    <section class="rail-section">
+      <h2>continue watching</h2>
+      <div class="rail">
+        {#each animeRail as p (p.anilistId)}
+          <a
+            class="rail-card"
+            href={`/anime/${p.anilistId}`}
+            onclick={(e) => clickContinueAnime(e, p)}
+          >
+            <img src={p.cover} alt={p.title} loading="lazy" />
+            <div class="rail-meta">
+              <h3>{p.title}</h3>
+              <p class="muted">
+                ep {p.episodeNumber}{p.positionSec > 0
+                  ? ` · ${fmtSecs(p.positionSec)}`
+                  : ""}
+              </p>
+            </div>
+          </a>
+        {/each}
+      </div>
+    </section>
+  {/if}
+
+  {#if mangaRail.length > 0}
+    <section class="rail-section">
+      <h2>continue reading</h2>
+      <div class="rail">
+        {#each mangaRail as p (p.anilistId)}
+          <a
+            class="rail-card"
+            href={`/manga/${p.anilistId}`}
+            onclick={(e) => clickContinueManga(e, p)}
+          >
+            <img src={p.cover} alt={p.title} loading="lazy" />
+            <div class="rail-meta">
+              <h3>{p.title}</h3>
+              <p class="muted">ch {p.chapterNumber}</p>
+            </div>
+          </a>
+        {/each}
+      </div>
+    </section>
+  {/if}
 
   <div class="mode-toggle">
     <button

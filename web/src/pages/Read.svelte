@@ -1,6 +1,11 @@
 <script lang="ts">
   import { onMount } from "svelte";
   import { navigate } from "../lib/router";
+  import {
+    getMangaProgress,
+    markChapterRead,
+    updateMangaProgress,
+  } from "../lib/progress";
 
   let {
     provider,
@@ -17,6 +22,12 @@
   let loading = $state(true);
   let error = $state<string | null>(null);
   let pages = $state<string[]>([]);
+
+  // Progress recording: debounced scroll listener writes scrollPct to
+  // localStorage. Restore happens after pages have loaded (and the
+  // browser has laid them out), so the scroll target exists.
+  let scrollTimer: ReturnType<typeof setTimeout> | null = null;
+  let pendingRestorePct = 0; // saved scrollPct for the current chapter
 
   // Chapter switcher state
   type ChapterLite = {
@@ -61,7 +72,21 @@
 
     loadPages(chapterId);
 
-    return () => {};
+    // Debounced scroll listener — record position into the progress store.
+    // We use document scroll because the reader page itself is the scroll
+    // container (no inner overflow element).
+    const onScroll = () => {
+      if (scrollTimer) clearTimeout(scrollTimer);
+      scrollTimer = setTimeout(recordProgress, 400);
+    };
+    window.addEventListener("scroll", onScroll, { passive: true });
+
+    return () => {
+      // Best-effort final flush before unmount.
+      recordProgress();
+      if (scrollTimer) clearTimeout(scrollTimer);
+      window.removeEventListener("scroll", onScroll);
+    };
   });
 
   // Re-run when the URL changes (back/forward, manual edit, navigate()).
@@ -95,7 +120,13 @@
     loading = true;
     error = null;
     pages = [];
-    // Scroll to top on new chapter
+
+    // Capture saved scrollPct for this chapter so we can restore once the
+    // images load — restore in onScrollRestore() after the page renders.
+    const saved = getMangaProgress(mangaId);
+    pendingRestorePct = saved && saved.chapterId === chId ? saved.scrollPct : 0;
+
+    // Scroll to top first; restore to saved position after layout settles.
     window.scrollTo({ top: 0 });
 
     const qs = new URLSearchParams({ provider, chapterId: chId });
@@ -107,6 +138,8 @@
       .then((data) => {
         if (data.error) throw new Error(data.error);
         pages = data.pages ?? [];
+        // Defer restore until after the DOM has the <img> elements laid out.
+        setTimeout(restoreScroll, 100);
       })
       .catch((e) => {
         error = e instanceof Error ? e.message : String(e);
@@ -114,6 +147,42 @@
       .finally(() => {
         loading = false;
       });
+  }
+
+  // Restore the saved scroll position for this chapter. The page is
+  // scroll-rooted; we compute target from document height.
+  function restoreScroll() {
+    if (pendingRestorePct <= 0) return;
+    const docHeight =
+      document.documentElement.scrollHeight - window.innerHeight;
+    if (docHeight <= 0) return;
+    // Clamp to [0, 1] in case the saved value is from a taller render.
+    const pct = Math.min(Math.max(pendingRestorePct, 0), 1);
+    window.scrollTo({ top: Math.round(docHeight * pct) });
+    pendingRestorePct = 0;
+  }
+
+  function recordProgress() {
+    const ch = chapters.find((c) => c.id === currentChapterId);
+    if (!ch || !mangaTitle) return;
+    const scrollable =
+      document.documentElement.scrollHeight - window.innerHeight;
+    if (scrollable <= 0) return; // not enough content to record
+    const pct = Math.min(Math.max(window.scrollY / scrollable, 0), 1);
+    updateMangaProgress({
+      anilistId: mangaId,
+      title: mangaTitle,
+      cover: "", // backfilled by MangaDetail
+      provider,
+      chapterId: currentChapterId,
+      chapterNumber: ch.number,
+      scrollPct: pct,
+      updatedAt: Date.now(),
+    });
+    // Mark read when the user has scrolled to within 5% of the end.
+    if (pct >= 0.95) {
+      markChapterRead(mangaId, ch.number);
+    }
   }
 
   function switchChapter(newChId: string) {

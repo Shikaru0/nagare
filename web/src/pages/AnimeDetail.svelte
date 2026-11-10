@@ -1,6 +1,12 @@
 <script lang="ts">
   import { type AnimeDetail, getAnime } from "../../../src/anilist";
   import { navigate } from "../lib/router";
+  import {
+    getAnimeProgress,
+    isEpisodeWatched,
+    updateAnimeProgress,
+    animeProgress,
+  } from "../lib/progress";
 
   type Episode = {
     id: string;
@@ -22,6 +28,12 @@
   let epsLoading = $state(false);
   let epsError = $state<string | null>(null);
 
+  // Subscribe to the watched set so the "watched" badge re-renders live.
+  let watched = $state<Record<string, boolean>>({});
+  animeProgress.subscribe((s) => {
+    watched = { ...s.watched };
+  });
+
   // Provider switcher state
   let providerList = $state<string[]>([]);
   // "auto" = iterate all providers; specific name = fetch from that one only
@@ -36,6 +48,7 @@
     getAnime(id)
       .then((a) => {
         anime = a;
+        backfillCover();
         fetchEpisodes();
       })
       .catch((e) => (error = e instanceof Error ? e.message : String(e)))
@@ -89,6 +102,18 @@
       .replace(/\n/g, " ")
       .trim();
   }
+
+  // Backfill the cover URL on any existing progress record for this anime
+  // so the home-page continue rail has a thumbnail. Called once the AniList
+  // info loads. This is the only place we have the cover URL; the watch
+  // page records positions but doesn't fetch AniList cover art.
+  function backfillCover() {
+    if (!anime) return;
+    const saved = getAnimeProgress(id);
+    if (saved && saved.cover !== anime.coverImage.large) {
+      updateAnimeProgress({ ...saved, cover: anime.coverImage.large });
+    }
+  }
 </script>
 
 <main class="wrap">
@@ -121,6 +146,22 @@
         <h2>Synopsis</h2>
         <p>{stripHtml(anime.description)}</p>
       </section>
+    {/if}
+
+    {#if getAnimeProgress(id) && episodes.length > 0}
+      {@const saved = getAnimeProgress(id)!}
+      {@const resumeEp =
+        episodes.find((e) => e.id === saved.episodeId) ??
+        episodes.find((e) => e.number === saved.episodeNumber)}
+      {#if resumeEp}
+        <a
+          class="continue-banner"
+          href={`/watch/${saved.provider}/${id}/${resumeEp.slug ?? ""}/${resumeEp.id}?aid=${resumeEp.animeId ?? 0}`}
+          title="resume where you left off"
+        >
+          continue from ep {resumeEp.number}
+        </a>
+      {/if}
     {/if}
 
     <section class="episodes">
@@ -162,6 +203,9 @@
               <span class="ep-num">{ep.number}</span>
               <span class="ep-title">{ep.title ?? ""}</span>
               {#if ep.isFiller}<span class="ep-filler">filler</span>{/if}
+              {#if watched[`${id}:${ep.number}`]}
+                <span class="ep-watched" title="watched">✓</span>
+              {/if}
             </a>
           {/each}
         </div>

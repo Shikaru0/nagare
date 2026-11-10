@@ -2,6 +2,11 @@
   import Hls from "hls.js";
   import { onMount } from "svelte";
   import { navigate } from "../lib/router";
+  import {
+    getAnimeProgress,
+    markEpisodeWatched,
+    updateAnimeProgress,
+  } from "../lib/progress";
 
   let {
     provider,
@@ -30,6 +35,11 @@
   let error = $state<string | null>(null);
   let using = $state<string>("");
   let hls: Hls | null = null;
+
+  // Progress recording: write position every ~5s while playing.
+  // We need the episode number (from the episodes list) to record against.
+  let progressTimer: ReturnType<typeof setInterval> | null = null;
+  let hasSeeked = false;
 
   type Sub = { url: string; language: string; label: string; format?: string };
   let subtitles = $state<Sub[]>([]);
@@ -111,11 +121,62 @@
 
     loadStream(currentProvider, episodeId);
 
+    // Start the progress recorder. It runs every 5s while the page is alive;
+    // it's safe even if loadStream hasn't finished yet (videoEl is null then).
+    progressTimer = setInterval(recordProgress, 5000);
+
     return () => {
+      // Best-effort final flush before unmount.
+      recordProgress();
+      if (progressTimer) clearInterval(progressTimer);
+      progressTimer = null;
       hls?.destroy();
       hls = null;
     };
   });
+
+  // Seek to the saved position once metadata is available, and only once
+  // per stream load (so switching episodes doesn't re-seek into the
+  // previous episode's position).
+  function onLoadedMetadata() {
+    if (!videoEl || hasSeeked) return;
+    const saved = getAnimeProgress(animeId);
+    if (!saved || saved.episodeId !== currentEpId) {
+      hasSeeked = true;
+      return;
+    }
+    // Only seek if there's something worth resuming (>= 5s in, with at
+    // least 30s of content left — otherwise just start from 0).
+    if (saved.positionSec > 5 && saved.durationSec - saved.positionSec > 30) {
+      videoEl.currentTime = saved.positionSec;
+    }
+    hasSeeked = true;
+  }
+
+  function recordProgress() {
+    if (!videoEl || Number.isNaN(videoEl.duration)) return;
+    const ep = episodes.find((e) => e.id === currentEpId);
+    if (!ep || !animeTitle) return;
+    const position = videoEl.currentTime;
+    const duration = videoEl.duration;
+    if (!position || !duration) return;
+    updateAnimeProgress({
+      anilistId: animeId,
+      title: animeTitle,
+      cover: "", // cover is set when the user comes back via continue rail;
+      // empty here is fine — AnimeDetail fetches fresh cover for the rail.
+      provider: currentProvider,
+      episodeId: currentEpId,
+      episodeNumber: ep.number,
+      positionSec: position,
+      durationSec: duration,
+      updatedAt: Date.now(),
+    });
+    // Mark watched when the user has seen >= 95% of the episode.
+    if (position / duration >= 0.95) {
+      markEpisodeWatched(animeId, ep.number);
+    }
+  }
 
   // Re-run when the URL changes (back/forward, manual edit, navigate()).
   // onMount only fires once per component instance, so we need this to
@@ -162,6 +223,7 @@
     using = "";
     subtitles = [];
     activeSub = -1;
+    hasSeeked = false;
     hls?.destroy();
     hls = null;
 
@@ -505,7 +567,13 @@
   {/if}
 
   <div class="player">
-    <video bind:this={videoEl} controls autoplay playsinline>
+    <video
+      bind:this={videoEl}
+      controls
+      autoplay
+      playsinline
+      onloadedmetadata={onLoadedMetadata}
+    >
       {#each subtitles as s (s.url)}
         <track
           src={subUrl(s.url, lastStream?.referer ?? "")}

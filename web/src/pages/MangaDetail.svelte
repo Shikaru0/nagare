@@ -1,6 +1,11 @@
 <script lang="ts">
   import { type MangaDetail, getManga } from "../../../src/anilist";
   import { navigate } from "../lib/router";
+  import {
+    getMangaProgress,
+    updateMangaProgress,
+    mangaProgress,
+  } from "../lib/progress";
 
   type Chapter = {
     id: string;
@@ -23,6 +28,12 @@
   let chLoading = $state(false);
   let chError = $state<string | null>(null);
 
+  // Live-updating read set for the chapter badges.
+  let read = $state<Record<string, boolean>>({});
+  mangaProgress.subscribe((s) => {
+    read = { ...s.read };
+  });
+
   // Provider switcher state (same as AnimeDetail)
   let providerList = $state<string[]>([]);
   let currentProvider = $state<string>("auto");
@@ -35,6 +46,7 @@
     getManga(id)
       .then((m) => {
         manga = m;
+        backfillCover();
         fetchChapters();
       })
       .catch((e) => (error = e instanceof Error ? e.message : String(e)))
@@ -88,6 +100,16 @@
       .replace(/\n/g, " ")
       .trim();
   }
+
+  // Backfill the cover URL on the existing progress record (mirrors
+  // AnimeDetail.backfillCover — see that file for rationale).
+  function backfillCover() {
+    if (!manga) return;
+    const saved = getMangaProgress(id);
+    if (saved && saved.cover !== manga.coverImage.large) {
+      updateMangaProgress({ ...saved, cover: manga.coverImage.large });
+    }
+  }
 </script>
 
 <main class="wrap">
@@ -120,6 +142,22 @@
         <h2>Synopsis</h2>
         <p>{stripHtml(manga.description)}</p>
       </section>
+    {/if}
+
+    {#if getMangaProgress(id) && chapters.length > 0}
+      {@const saved = getMangaProgress(id)!}
+      {@const resumeCh =
+        chapters.find((c) => c.id === saved.chapterId) ??
+        chapters.find((c) => c.number === saved.chapterNumber)}
+      {#if resumeCh}
+        <a
+          class="continue-banner"
+          href={`/read/${saved.provider}/${id}/${resumeCh.slug ?? ""}/${resumeCh.id}`}
+          title="resume where you left off"
+        >
+          continue from ch {resumeCh.number}
+        </a>
+      {/if}
     {/if}
 
     <section class="episodes">
@@ -160,6 +198,9 @@
             >
               <span class="ep-num">{ch.number}</span>
               <span class="ep-title">{ch.title ?? ""}</span>
+              {#if read[`${id}:${ch.number}`]}
+                <span class="ep-watched" title="read">✓</span>
+              {/if}
             </a>
           {/each}
         </div>

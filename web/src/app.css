@@ -368,6 +368,82 @@ body {
   color: var(--color-ink);
 }
 
+/* continue rails (home) */
+.rail-section {
+  margin: 1.5rem 0;
+}
+
+.rail-section h2 {
+  font-size: 1.05rem;
+  margin: 0 0 0.6rem;
+  color: var(--color-soft);
+  letter-spacing: 0.02em;
+}
+
+.rail {
+  display: flex;
+  gap: 0.8rem;
+  overflow-x: auto;
+  padding-bottom: 0.4rem;
+}
+
+.rail-card {
+  display: block;
+  flex: 0 0 auto;
+  width: 120px;
+  color: inherit;
+  text-decoration: none;
+}
+
+.rail-card img {
+  width: 100%;
+  height: 170px;
+  border-radius: 8px;
+  object-fit: cover;
+}
+
+.rail-card:hover {
+  transform: translateY(-2px);
+}
+
+.rail-meta h3 {
+  font-size: 0.8rem;
+  margin: 0.4rem 0 0.1rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.rail-meta p {
+  margin: 0;
+  font-size: 0.75rem;
+}
+
+/* "continue from ep N" banner on detail pages */
+.continue-banner {
+  display: inline-block;
+  margin: 1.5rem 0 0;
+  padding: 0.5rem 1rem;
+  border-radius: 8px;
+  background: var(--color-pop);
+  color: white;
+  text-decoration: none;
+  font-size: 0.9rem;
+  font-weight: 500;
+}
+
+.continue-banner:hover {
+  opacity: 0.9;
+}
+
+/* "watched" / "read" checkmark badge on episode/chapter cards */
+.ep-watched {
+  color: var(--color-pop);
+  font-size: 0.85rem;
+  flex-shrink: 0;
+  margin-left: auto;
+}
+
 /* 404 */
 .notfound {
   text-align: center;
