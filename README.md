@@ -22,6 +22,7 @@ bun run start  # serve dist/ + api on :4141
 
 - **Runtime**: Bun
 - **Frontend**: Svelte 5 (runes) + Vite + Tailwind 4
+- **Player**: hls.js (HLS), native `<video>` (MP4 fallback)
 - **Lint/format**: Biome
 - **Metadata**: AniList GraphQL API (search, info)
 - **Providers**: AniZone scraper (`src/providers/anizone.ts`), AnimeUnity fallback (`src/providers/animeunity.ts`)
@@ -39,19 +40,24 @@ Each provider implements `findEpisodes(ref)` and `getStream(req)`. The registry 
 
 | Route | Description |
 |---|---|
+| `GET /api/providers` | List available provider names |
 | `GET /api/anilist/search?q=` | AniList search |
 | `GET /api/anilist/info?id=` | AniList anime info |
-| `GET /api/episodes?anilistId=&title=` | Episode list via provider registry |
-| `GET /api/stream?provider=&slug=&episodeId=` | Stream URL (HLS/MP4 + subtitles) |
+| `GET /api/episodes?anilistId=&title=` | Episode list via provider registry (`?provider=` for specific, `?provider=&slug=` for slug-only lookup) |
+| `GET /api/stream?provider=&animeId=&slug=&episodeId=` | Stream URL (HLS/MP4 + subtitles) |
 | `GET /api/subtitle?url=` | Subtitle proxy (SRT→VTT conversion) |
 | `GET /api/proxy?url=&referer=` | HLS/MP4 proxy (Referer + Range forwarding, m3u8 rewriting) |
 
 ## Routes
 
 - `/` — search
-- `/anime/{id}` — anime detail + episode list
-- `/watch/{provider}/{animeId}/{slug}/{episodeId}` — player
+- `/anime/{id}` — anime detail + episode list (provider switcher)
+- `/watch/{provider}/{anilistId}/{slug}/{episodeId}?aid={providerAnimeId}` — player (provider + episode switcher, subs)
 
 ## Adding a provider
 
-Implement `Provider` in `src/providers/<name>.ts`, add to the `providers` array in `src/providers/index.ts`. The episode list and stream API routes pick it up automatically — the frontend works as long as episodes set `slug` + `id` correctly for the watch URL.
+Implement `Provider` in `src/providers/<name>.ts`, add to the `providers` array in `src/providers/index.ts`. The episode list and stream API routes pick it up automatically.
+
+Required: `findEpisodes(ref)` + `getStream(req)`. Optional: `findEpisodesBySlug(slug)` — lets the watch page populate the episode dropdown without the AniList title.
+
+Episodes should set `slug` (provider anime slug) + `id` (episode id) + `animeId` (provider's internal anime ID, or 0 if unused).
