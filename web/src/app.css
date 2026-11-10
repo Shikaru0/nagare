@@ -255,6 +255,33 @@ body {
   border-radius: 8px;
 }
 
+.stream-source {
+  margin-top: 0.4rem;
+  font-size: 0.75rem;
+}
+
+.subs-bar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+  font-size: 0.85rem;
+  color: var(--color-mute);
+}
+
+.subs-bar .btn-ghost {
+  margin: 0;
+  padding: 0.2rem 0.5rem;
+  font-size: 0.8rem;
+}
+
+.subs-bar .switcher-label {
+  color: var(--color-mute);
+  font-size: 0.75rem;
+  text-transform: lowercase;
+}
+
 /* 404 */
 .notfound {
   text-align: center;

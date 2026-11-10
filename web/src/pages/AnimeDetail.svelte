@@ -102,8 +102,8 @@ function stripHtml(s: string | null) {
           {#each episodes as ep (ep.id)}
             <a
               class="episode"
-              href={ep.animeId && ep.slug
-                ? `/watch/${provider}/${ep.animeId}/${ep.slug}/${ep.id}`
+              href={ep.slug
+                ? `/watch/${provider}/${ep.animeId ?? 0}/${ep.slug}/${ep.id}`
                 : `/watch/${ep.id}`}
               title={ep.title ?? `Episode ${ep.number}`}
             >

@@ -23,10 +23,18 @@ export type StreamRequest = {
 
 // HLS preferred (multi-quality, switchable subs), MP4 fallback (single
 // quality, hardsubs). Provider returns whatever it can — at least one.
+export type SubtitleTrack = {
+  url: string;
+  language: string;
+  label: string;
+  format?: "vtt" | "srt" | "ass";
+};
+
 export type StreamResult = {
   hls?: string;
   mp4?: string;
   referer: string;
+  subtitles?: SubtitleTrack[];
 };
 
 export type Provider = {

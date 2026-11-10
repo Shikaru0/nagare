@@ -1,6 +1,7 @@
 // Provider registry. Order matters — first hit wins.
 
 import { animeUnityProvider } from "./animeunity";
+import { anizoneProvider } from "./anizone";
 import type { AnimeRef, EpisodeResult, Provider } from "./types";
 
 export type {
@@ -10,9 +11,10 @@ export type {
   Provider,
   StreamRequest,
   StreamResult,
+  SubtitleTrack,
 } from "./types";
 
-export const providers: Provider[] = [animeUnityProvider];
+export const providers: Provider[] = [anizoneProvider, animeUnityProvider];
 
 export function getProvider(name: string): Provider | undefined {
   return providers.find((p) => p.name === name);

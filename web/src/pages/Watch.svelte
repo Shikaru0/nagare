@@ -20,6 +20,10 @@ let error = $state<string | null>(null);
 let using = $state<string>("");
 let hls: Hls | null = null;
 
+type Sub = { url: string; language: string; label: string; format?: string };
+let subtitles = $state<Sub[]>([]);
+let activeSub = $state<number>(-1);
+
 onMount(() => {
   const qs = new URLSearchParams({
     provider,
@@ -34,18 +38,19 @@ onMount(() => {
         hls?: string;
         mp4?: string;
         referer: string;
+        subtitles?: Sub[];
         error?: string;
       }>;
     })
-    .then(({ hls: hlsUrl, mp4, referer, error: err }) => {
+    .then(({ hls: hlsUrl, mp4, referer, subtitles: subs, error: err }) => {
       if (err) throw new Error(err);
       if (!videoEl) return;
-      // Try HLS first (multi-quality, switchable subs). Route through
-      // /api/proxy so the server sets Referer on the m3u8 + segments.
+      // Filter out ASS subtitles — browsers can't render them natively.
+      // SRT is converted to VTT server-side via /api/subtitle.
+      subtitles = (subs ?? []).filter((s) => s.format !== "ass");
       if (hlsUrl) {
         const proxied = `/api/proxy?url=${encodeURIComponent(hlsUrl)}&referer=${encodeURIComponent(referer)}`;
         tryHls(proxied, () => {
-          // HLS failed (e.g. vixcloud 403) — fall back to MP4 if we have one
           if (mp4) tryMp4(mp4);
           else {
             error = "hls load failed, no mp4 fallback";
@@ -112,6 +117,19 @@ function tryMp4(url: string) {
   videoEl.src = `/api/proxy?url=${encodeURIComponent(url)}`;
   videoEl.play().catch(() => {});
 }
+
+function subUrl(url: string): string {
+  // Route through /api/subtitle for SRT→VTT conversion
+  return `/api/subtitle?url=${encodeURIComponent(url)}`;
+}
+
+function toggleSub(idx: number) {
+  if (!videoEl) return;
+  activeSub = activeSub === idx ? -1 : idx;
+  for (let i = 0; i < videoEl.textTracks.length; i++) {
+    videoEl.textTracks[i]!.mode = i === idx ? "showing" : "disabled";
+  }
+}
 </script>
 
 <main class="wrap">
@@ -126,7 +144,29 @@ function tryMp4(url: string) {
   {/if}
 
   <div class="player">
-    <video bind:this={videoEl} controls autoplay playsinline></video>
+    <video bind:this={videoEl} controls autoplay playsinline>
+      {#each subtitles as s (s.url)}
+        <track src={subUrl(s.url)} srclang={s.language} label={s.label} />
+      {/each}
+    </video>
     {#if using}<p class="muted stream-source">via {using}</p>{/if}
   </div>
+
+  {#if subtitles.length > 0}
+    <div class="subs-bar">
+      <span class="switcher-label">subs</span>
+      <button
+        class="btn-ghost"
+        onclick={() => toggleSub(-1)}
+        style:font-weight={activeSub === -1 ? "bold" : "normal"}
+      >off</button>
+      {#each subtitles as s, i (s.url)}
+        <button
+          class="btn-ghost"
+          onclick={() => toggleSub(i)}
+          style:font-weight={activeSub === i ? "bold" : "normal"}
+        >{s.label}</button>
+      {/each}
+    </div>
+  {/if}
 </main>
