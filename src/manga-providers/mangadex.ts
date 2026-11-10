@@ -95,26 +95,42 @@ async function searchMangaDex(
 }
 
 // Fetch the chapter feed for a MangaDex manga UUID.
-// Filters to English, sorts ascending by chapter number, deduplicates
-// by chapter number (multiple scanlation groups often upload the same
-// chapter — we keep the first one per number for a clean list).
+// Filters to English, deduplicates by chapter number (multiple scanlation
+// groups often upload the same chapter — we keep the first one per number),
+// and sorts the final list numerically (MangaDex sorts chapter numbers as
+// strings, so "100" comes before "98" in the raw API response).
+//
+// Paginates through all results — the API caps at 500 per request, and a
+// long manga with multiple uploads per chapter can easily exceed that.
 async function fetchChapterFeed(mangaDexId: string): Promise<Chapter[]> {
-  const url = new URL(`${API}/manga/${mangaDexId}/feed`);
-  url.searchParams.set("translatedLanguage[]", "en");
-  url.searchParams.set("limit", "500");
-  url.searchParams.set("order[chapter]", "asc");
-  // append (not set) so all three ratings are included — set() would
-  // overwrite, leaving only the last value.
-  url.searchParams.append("contentRating[]", "safe");
-  url.searchParams.append("contentRating[]", "suggestive");
-  url.searchParams.append("contentRating[]", "erotica");
-  const res = await fetch(url, { headers: HEADERS });
-  if (!res.ok) throw new Error(`mangadex: feed ${res.status}`);
-  const data = (await res.json()) as MdFeedResponse;
+  const limit = 500;
+  const raw: MdChapter[] = [];
+  let offset = 0;
+
+  while (true) {
+    const url = new URL(`${API}/manga/${mangaDexId}/feed`);
+    url.searchParams.set("translatedLanguage[]", "en");
+    url.searchParams.set("limit", String(limit));
+    url.searchParams.set("offset", String(offset));
+    url.searchParams.set("order[chapter]", "asc");
+    // append (not set) so all three ratings are included — set() would
+    // overwrite, leaving only the last value.
+    url.searchParams.append("contentRating[]", "safe");
+    url.searchParams.append("contentRating[]", "suggestive");
+    url.searchParams.append("contentRating[]", "erotica");
+    const res = await fetch(url, { headers: HEADERS });
+    if (!res.ok) throw new Error(`mangadex: feed ${res.status}`);
+    const data = (await res.json()) as MdFeedResponse;
+
+    raw.push(...data.data);
+    // Stop if we've fetched everything or this page was partial.
+    if (raw.length >= data.total || data.data.length < limit) break;
+    offset += limit;
+  }
 
   const seen = new Set<number>();
   const chapters: Chapter[] = [];
-  for (const ch of data.data) {
+  for (const ch of raw) {
     // Skip chapters with 0 pages (deleted/external placeholders that
     // can't be read via the at-home server).
     if (ch.attributes.pages <= 0) continue;
@@ -131,6 +147,9 @@ async function fetchChapterFeed(mangaDexId: string): Promise<Chapter[]> {
       slug: mangaDexId,
     });
   }
+  // Sort numerically — the API sorts chapter as a string, so "100" would
+  // appear before "98" without this.
+  chapters.sort((a, b) => a.number - b.number);
   return chapters;
 }
 
