@@ -58,13 +58,19 @@ function rewriteM3u8(
     .join("\n");
 }
 
-import { getAnime, searchAnime } from "./anilist";
+import { getAnime, getManga, searchAnime, searchManga } from "./anilist";
 import {
   findEpisodes,
   findEpisodesFrom,
   getProvider,
   providers,
 } from "./providers";
+import {
+  findChapters,
+  findChaptersFrom,
+  getMangaProvider,
+  mangaProviders,
+} from "./manga-providers";
 
 Bun.serve({
   port,
@@ -266,6 +272,101 @@ Bun.serve({
           return json(
             { error: e instanceof Error ? e.message : String(e) },
             502,
+          );
+        }
+      }
+      // -- Manga routes (parallel to the anime routes above) --
+      if (url.pathname === "/api/manga/providers") {
+        return json({
+          providers: mangaProviders.map((p) => p.name),
+        });
+      }
+      if (url.pathname === "/api/manga/search") {
+        const q = url.searchParams.get("q")?.trim();
+        if (!q) return json({ error: "missing ?q=" }, 400);
+        try {
+          return json(await searchManga(q));
+        } catch (e) {
+          return json(
+            { error: e instanceof Error ? e.message : String(e) },
+            500,
+          );
+        }
+      }
+      if (url.pathname === "/api/manga/info") {
+        const id = Number(url.searchParams.get("id"));
+        if (!id) return json({ error: "missing ?id=" }, 400);
+        try {
+          return json(await getManga(id));
+        } catch (e) {
+          return json(
+            { error: e instanceof Error ? e.message : String(e) },
+            500,
+          );
+        }
+      }
+      if (url.pathname === "/api/manga/chapters") {
+        const anilistId = Number(url.searchParams.get("anilistId"));
+        const title = url.searchParams.get("title")?.trim();
+        const wantedProvider = url.searchParams.get("provider")?.trim();
+        const slug = url.searchParams.get("slug")?.trim();
+        // Slug-based lookup (no title) — for the read page's chapter
+        // dropdown refresh without needing the AniList title.
+        if (wantedProvider && slug && !title) {
+          const p = getMangaProvider(wantedProvider);
+          if (p?.findChaptersBySlug) {
+            try {
+              const chs = await p.findChaptersBySlug(slug);
+              if (chs && chs.length > 0) {
+                return json({ provider: p.name, chapters: chs });
+              }
+              return json({
+                provider: null,
+                chapters: [],
+                error: "no chapters",
+              });
+            } catch (e) {
+              return json({
+                provider: null,
+                chapters: [],
+                error: e instanceof Error ? e.message : String(e),
+              });
+            }
+          }
+          return json({
+            provider: null,
+            chapters: [],
+            error: `${wantedProvider} doesn't support slug-based lookup`,
+          });
+        }
+        if (!anilistId || !title) {
+          return json(
+            {
+              error:
+                "missing ?anilistId= and ?title= (or ?provider= and ?slug=)",
+            },
+            400,
+          );
+        }
+        const result = wantedProvider
+          ? await findChaptersFrom(wantedProvider, { anilistId, title })
+          : await findChapters({ anilistId, title });
+        return json(result);
+      }
+      if (url.pathname === "/api/manga/pages") {
+        const provider = getMangaProvider(
+          url.searchParams.get("provider") ?? "",
+        );
+        const chapterId = url.searchParams.get("chapterId")?.trim();
+        if (!provider || !chapterId) {
+          return json({ error: "missing ?provider=&chapterId=" }, 400);
+        }
+        try {
+          return json(await provider.getPages({ chapterId }));
+        } catch (e) {
+          return json(
+            { error: e instanceof Error ? e.message : String(e) },
+            500,
           );
         }
       }

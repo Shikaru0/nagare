@@ -65,3 +65,53 @@ export function getAnime(id: number) {
     { id },
   ).then((d) => d.Media);
 }
+
+// -- Manga (type: MANGA) — same AniList API, different type filter.
+// Manga has `chapters` instead of `episodes`, no nextAiringEpisode.
+
+export type MangaSummary = {
+  id: number;
+  idMal: number | null;
+  title: { romaji: string; english: string | null };
+  coverImage: { large: string };
+  seasonYear: number | null;
+};
+
+export type MangaDetail = MangaSummary & {
+  description: string | null;
+  bannerImage: string | null;
+  chapters: number | null;
+  averageScore: number | null;
+  genres: string[];
+  status: string | null;
+};
+
+export function searchManga(q: string) {
+  return gql<{ Page: { media: MangaSummary[] } }>(
+    `
+    query($search: String) {
+      Page(perPage: 12) {
+        media(search: $search, type: MANGA, sort: SEARCH_MATCH, isAdult: false) {
+          id idMal title { romaji english }
+          coverImage { large } seasonYear
+        }
+      }
+    }`,
+    { search: q },
+  ).then((d) => d.Page.media);
+}
+
+export function getManga(id: number) {
+  return gql<{ Media: MangaDetail }>(
+    `
+    query($id: Int) {
+      Media(id: $id, type: MANGA) {
+        id idMal title { romaji english }
+        coverImage { large } seasonYear
+        description bannerImage chapters averageScore
+        genres status
+      }
+    }`,
+    { id },
+  ).then((d) => d.Media);
+}

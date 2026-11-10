@@ -30,10 +30,18 @@ export type Route =
       slug: string;
       episodeId: string;
     }
+  | { name: "manga"; id: number }
+  | {
+      name: "read";
+      provider: string;
+      mangaId: number;
+      slug: string;
+      chapterId: string;
+    }
   | { name: "notfound" };
 
 export function matchRoute(p: string): Route {
-  // Split path + query so the episodeId regex doesn't capture ?aid=
+  // Split path + query so the episodeId/chapterId regex doesn't capture ?aid=
   const [pathname] = p.split("?");
   const watch = pathname?.match(/^\/watch\/([^/]+)\/(\d+)\/([^/]+)\/([^/]+)$/);
   if (watch?.[1] && watch[2] && watch[3] && watch[4]) {
@@ -45,8 +53,20 @@ export function matchRoute(p: string): Route {
       episodeId: decodeURIComponent(watch[4]),
     };
   }
+  const read = pathname?.match(/^\/read\/([^/]+)\/(\d+)\/([^/]+)\/([^/]+)$/);
+  if (read?.[1] && read[2] && read[3] && read[4]) {
+    return {
+      name: "read",
+      provider: decodeURIComponent(read[1]),
+      mangaId: Number(read[2]),
+      slug: decodeURIComponent(read[3]),
+      chapterId: decodeURIComponent(read[4]),
+    };
+  }
   const m = pathname?.match(/^\/anime\/(\d+)$/);
   if (m?.[1]) return { name: "anime", id: Number(m[1]) };
+  const mg = pathname?.match(/^\/manga\/(\d+)$/);
+  if (mg?.[1]) return { name: "manga", id: Number(mg[1]) };
   if (pathname === "/" || pathname === "") return { name: "home" };
   return { name: "notfound" };
 }

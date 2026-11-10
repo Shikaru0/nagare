@@ -2,6 +2,8 @@
   import { matchRoute, path } from "./lib/router";
   import AnimeDetail from "./pages/AnimeDetail.svelte";
   import Home from "./pages/Home.svelte";
+  import MangaDetail from "./pages/MangaDetail.svelte";
+  import Read from "./pages/Read.svelte";
   import Watch from "./pages/Watch.svelte";
 
   let route = $derived(matchRoute($path));
@@ -15,6 +17,15 @@
     animeId={route.animeId}
     slug={route.slug}
     episodeId={route.episodeId}
+  />
+{:else if route.name === "manga"}
+  <MangaDetail id={route.id} />
+{:else if route.name === "read"}
+  <Read
+    provider={route.provider}
+    mangaId={route.mangaId}
+    slug={route.slug}
+    chapterId={route.chapterId}
   />
 {:else if route.name === "home"}
   <Home />
