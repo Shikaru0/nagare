@@ -47,6 +47,7 @@ readStreamMode();
 
 // Cache the last stream response so we can re-load with a different
 // format without re-fetching from the provider.
+// svelte-ignore non_reactive_update
 let lastStream: {
   hls?: string;
   mp4?: string;
@@ -60,7 +61,13 @@ let providerList = $state<string[]>([provider]);
 // svelte-ignore state_referenced_locally
 let currentProvider = $state(provider);
 let switching = $state(false);
-type EpisodeLite = { id: string; number: number; title?: string; animeId?: number };
+type EpisodeLite = {
+  id: string;
+  number: number;
+  title?: string;
+  animeId?: number;
+  slug?: string;
+};
 let episodes = $state<EpisodeLite[]>([]);
 // svelte-ignore state_referenced_locally
 let currentEpId = $state(episodeId);
@@ -279,9 +286,12 @@ function tryMp4(url: string) {
   videoEl.play().catch(() => {});
 }
 
-function subUrl(url: string): string {
-  // Route through /api/subtitle for SRT→VTT conversion
-  return `/api/subtitle?url=${encodeURIComponent(url)}`;
+function subUrl(url: string, referer: string): string {
+  // Route through /api/subtitle for SRT→VTT conversion. Some CDNs
+  // (e.g. zokoanime's dramahot.top) 403 on subtitle fetches without a
+  // matching Referer — forward the stream's referer when present.
+  const r = referer ? `&referer=${encodeURIComponent(referer)}` : "";
+  return `/api/subtitle?url=${encodeURIComponent(url)}${r}`;
 }
 
 function toggleSub(idx: number) {
@@ -341,9 +351,14 @@ async function switchProvider(newProvider: string) {
     // Don't set currentProvider/currentEpId here — the $effect will set
     // them when the props update via navigate(). Setting them now would
     // make the $effect guard bail and loadStream would never fire.
-    // Navigate with AniList ID in path + provider's animeId as ?aid=
+    // Navigate with AniList ID in path + provider's animeId as ?aid=.
+    // Use the new provider's own slug (from its episode list), NOT the
+    // current URL's slug — each provider has its own slug scheme (zokoanime
+    // uses the MAL ID, anizone uses its site slug, animeunity uses
+    // record.slug). Reusing the old slug breaks providers like anizone
+    // whose getStream fetches /anime/{slug}/{ep}.
     navigate(
-      `/watch/${newProvider}/${animeId}/${slug}/${matchingEp.id}?aid=${matchingEp.animeId ?? 0}${fmtParam()}`,
+      `/watch/${newProvider}/${animeId}/${matchingEp.slug ?? slug}/${matchingEp.id}?aid=${matchingEp.animeId ?? 0}${fmtParam()}`,
     );
   } catch (e) {
     error = `switch failed: ${e instanceof Error ? e.message : String(e)}`;
@@ -359,8 +374,10 @@ function switchEpisode(newEpId: string) {
   // episodeId prop updates via navigate(). Setting it now would make
   // the $effect guard bail (prop === currentEpId) and loadStream
   // would never fire.
+  // Use the episode's own slug if the provider gave one — self-heals
+  // URLs that have a stale slug from a previous provider switch.
   navigate(
-    `/watch/${currentProvider}/${animeId}/${slug}/${newEpId}?aid=${ep?.animeId ?? providerAnimeId}${fmtParam()}`,
+    `/watch/${currentProvider}/${animeId}/${ep?.slug ?? slug}/${newEpId}?aid=${ep?.animeId ?? providerAnimeId}${fmtParam()}`,
   );
 }
 
@@ -370,10 +387,12 @@ function switchFormat(mode: "auto" | "hls" | "mp4") {
   if (mode === streamMode) return;
   streamMode = mode;
   // Update the URL ?fmt= param (without triggering loadStream — the
-  // $effect guard bails because provider/episodeId don't change)
+  // $effect guard bails because provider/episodeId don't change).
+  // Also self-heal the slug from the episode list if available.
   const aid = providerAnimeId;
+  const ep = episodes.find((e) => e.id === currentEpId);
   navigate(
-    `/watch/${currentProvider}/${animeId}/${slug}/${currentEpId}?aid=${aid}${mode !== "auto" ? `&fmt=${mode}` : ""}`,
+    `/watch/${currentProvider}/${animeId}/${ep?.slug ?? slug}/${currentEpId}?aid=${aid}${mode !== "auto" ? `&fmt=${mode}` : ""}`,
   );
   // Re-play the cached stream with the new format
   if (lastStream) {
@@ -463,7 +482,7 @@ function nextEpisode() {
   <div class="player">
     <video bind:this={videoEl} controls autoplay playsinline>
       {#each subtitles as s (s.url)}
-        <track src={subUrl(s.url)} srclang={s.language} label={s.label} />
+        <track src={subUrl(s.url, lastStream?.referer ?? "")} srclang={s.language} label={s.label} />
       {/each}
     </video>
     {#if using}<p class="muted stream-source">via {using}</p>{/if}

@@ -13,6 +13,7 @@ async function gql<T>(query: string, variables: Record<string, unknown>): Promis
 
 export type AnimeSummary = {
   id: number;
+  idMal: number | null;
   title: { romaji: string; english: string | null };
   coverImage: { large: string };
   seasonYear: number | null;
@@ -22,6 +23,10 @@ export type AnimeDetail = AnimeSummary & {
   description: string | null;
   bannerImage: string | null;
   episodes: number | null;
+  // For ongoing shows (status=RELEASING), AniList exposes the next episode
+  // to air. nextAiringEpisode.episode - 1 = current available episode count.
+  // Used by providers (e.g. zokoanime) to enumerate episodes without probing.
+  nextAiringEpisode: { episode: number; airingAt: number } | null;
   averageScore: number | null;
   genres: string[];
   status: string | null;
@@ -33,7 +38,7 @@ export function searchAnime(q: string) {
     query($search: String) {
       Page(perPage: 12) {
         media(search: $search, type: ANIME, sort: SEARCH_MATCH, isAdult: false) {
-          id title { romaji english }
+          id idMal title { romaji english }
           coverImage { large } seasonYear
         }
       }
@@ -47,9 +52,10 @@ export function getAnime(id: number) {
     `
     query($id: Int) {
       Media(id: $id, type: ANIME) {
-        id title { romaji english }
+        id idMal title { romaji english }
         coverImage { large } seasonYear
         description bannerImage episodes averageScore
+        nextAiringEpisode { episode airingAt }
         genres status
       }
     }`,

@@ -3,6 +3,7 @@
 import { animeUnityProvider } from "./animeunity";
 import { anizoneProvider } from "./anizone";
 import type { AnimeRef, EpisodeResult, Provider } from "./types";
+import { zokoanimeProvider } from "./zokoanime";
 
 export type {
   AnimeRef,
@@ -14,7 +15,11 @@ export type {
   SubtitleTrack,
 } from "./types";
 
-export const providers: Provider[] = [anizoneProvider, animeUnityProvider];
+export const providers: Provider[] = [
+  zokoanimeProvider,
+  anizoneProvider,
+  animeUnityProvider,
+];
 
 export function getProvider(name: string): Provider | undefined {
   return providers.find((p) => p.name === name);

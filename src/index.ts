@@ -152,12 +152,18 @@ Bun.serve({
         // Fetch a subtitle file (SRT or VTT) and convert to WebVTT for
         // the browser's <track> element. ASS subtitles are skipped —
         // browsers can't render them natively.
+        // Optional ?referer= (and derived ?origin=) for CDNs that reject
+        // subtitle requests without a matching Referer (e.g. zokoanime's
+        // dramahot.top VTT files 403 without Referer: zokoanime.video).
         const target = url.searchParams.get("url");
+        const referer = url.searchParams.get("referer") ?? "";
         if (!target) return json({ error: "missing ?url=" }, 400);
         try {
           const res = await fetch(target, {
             headers: {
-              "User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36",
+              "User-Agent":
+                "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+              ...(referer ? { Referer: referer, Origin: new URL(referer).origin } : {}),
             },
           });
           if (!res.ok) return json({ error: `upstream ${res.status}` }, 502);
