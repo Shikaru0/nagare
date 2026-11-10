@@ -1,5 +1,7 @@
 # nagare
 
+[![CI](https://github.com/Shikaru0/nagare/actions/workflows/ci.yml/badge.svg)](https://github.com/Shikaru0/nagare/actions/workflows/ci.yml)
+
 Self-hosted anime streaming. AniList for metadata, in-house scrapers (`src/providers/`) for episodes.
 
 ## Dev
