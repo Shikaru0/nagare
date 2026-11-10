@@ -35,6 +35,25 @@ type Sub = { url: string; language: string; label: string; format?: string };
 let subtitles = $state<Sub[]>([]);
 let activeSub = $state<number>(-1);
 
+// Stream format preference: auto (HLS→MP4 fallback), hls, or mp4.
+// Stored in URL as ?fmt= so it's shareable + survives navigation.
+let streamMode = $state<"auto" | "hls" | "mp4">("auto");
+function readStreamMode() {
+  const fmt = new URLSearchParams(window.location.search).get("fmt");
+  if (fmt === "hls" || fmt === "mp4") streamMode = fmt;
+  else streamMode = "auto";
+}
+readStreamMode();
+
+// Cache the last stream response so we can re-load with a different
+// format without re-fetching from the provider.
+let lastStream: {
+  hls?: string;
+  mp4?: string;
+  referer: string;
+  subtitles?: Sub[];
+} | null = null;
+
 // Provider + episode switcher state
 // svelte-ignore state_referenced_locally
 let providerList = $state<string[]>([provider]);
@@ -96,6 +115,7 @@ $effect(() => {
   currentProvider = _prov;
   currentEpId = _ep;
   readProviderAnimeId(); // update providerAnimeId from ?aid= query param
+  readStreamMode(); // update streamMode from ?fmt= query param
   loadStream(_prov, _ep);
 });
 
@@ -150,31 +170,69 @@ function loadStream(prov: string, epId: string) {
         error?: string;
       }>;
     })
-    .then(({ hls: hlsUrl, mp4, referer, subtitles: subs, error: err }) => {
-      if (err) throw new Error(err);
-      if (!videoEl) return;
-      // Filter out ASS subtitles — browsers can't render them natively.
-      // SRT is converted to VTT server-side via /api/subtitle.
-      subtitles = (subs ?? []).filter((s) => s.format !== "ass");
-      if (hlsUrl) {
-        const proxied = `/api/proxy?url=${encodeURIComponent(hlsUrl)}&referer=${encodeURIComponent(referer)}`;
-        tryHls(proxied, () => {
-          if (mp4) tryMp4(mp4);
-          else {
-            error = "hls load failed, no mp4 fallback";
-            loading = false;
-          }
-        });
-      } else if (mp4) {
-        tryMp4(mp4);
-      } else {
-        throw new Error("no stream url");
-      }
+    .then((data) => {
+      if (data.error) throw new Error(data.error);
+      lastStream = data;
+      playStream(data);
     })
     .catch((e) => {
       error = e instanceof Error ? e.message : String(e);
       loading = false;
     });
+}
+
+// Play a stream response using the current streamMode preference.
+// auto: HLS first, MP4 fallback. hls: HLS only. mp4: MP4 only.
+function playStream(data: {
+  hls?: string;
+  mp4?: string;
+  referer: string;
+  subtitles?: Sub[];
+}) {
+  if (!videoEl) return;
+  // Filter out ASS subtitles — browsers can't render them natively.
+  // SRT is converted to VTT server-side via /api/subtitle.
+  subtitles = (data.subtitles ?? []).filter((s) => s.format !== "ass");
+
+  const tryHlsWithFallback = () => {
+    if (data.hls) {
+      const proxied = `/api/proxy?url=${encodeURIComponent(data.hls)}&referer=${encodeURIComponent(data.referer)}`;
+      tryHls(proxied, () => {
+        if (streamMode === "auto" && data.mp4) tryMp4(data.mp4);
+        else {
+          error = "hls load failed, no mp4 fallback";
+          loading = false;
+        }
+      });
+    } else if (streamMode === "auto" && data.mp4) {
+      tryMp4(data.mp4);
+    } else {
+      error = "no stream url for selected format";
+      loading = false;
+    }
+  };
+
+  if (streamMode === "mp4") {
+    if (data.mp4) tryMp4(data.mp4);
+    else {
+      error = "no mp4 stream available";
+      loading = false;
+    }
+  } else if (streamMode === "hls") {
+    if (data.hls) {
+      const proxied = `/api/proxy?url=${encodeURIComponent(data.hls)}&referer=${encodeURIComponent(data.referer)}`;
+      tryHls(proxied, () => {
+        error = "hls load failed";
+        loading = false;
+      });
+    } else {
+      error = "no hls stream available";
+      loading = false;
+    }
+  } else {
+    // auto: HLS first, MP4 fallback
+    tryHlsWithFallback();
+  }
 }
 
 function tryHls(url: string, onFail: () => void) {
@@ -285,7 +343,7 @@ async function switchProvider(newProvider: string) {
     // make the $effect guard bail and loadStream would never fire.
     // Navigate with AniList ID in path + provider's animeId as ?aid=
     navigate(
-      `/watch/${newProvider}/${animeId}/${slug}/${matchingEp.id}?aid=${matchingEp.animeId ?? 0}`,
+      `/watch/${newProvider}/${animeId}/${slug}/${matchingEp.id}?aid=${matchingEp.animeId ?? 0}${fmtParam()}`,
     );
   } catch (e) {
     error = `switch failed: ${e instanceof Error ? e.message : String(e)}`;
@@ -302,8 +360,35 @@ function switchEpisode(newEpId: string) {
   // the $effect guard bail (prop === currentEpId) and loadStream
   // would never fire.
   navigate(
-    `/watch/${currentProvider}/${animeId}/${slug}/${newEpId}?aid=${ep?.animeId ?? providerAnimeId}`,
+    `/watch/${currentProvider}/${animeId}/${slug}/${newEpId}?aid=${ep?.animeId ?? providerAnimeId}${fmtParam()}`,
   );
+}
+
+// Switch stream format (auto/hls/mp4). Re-plays the current stream
+// with the new preference without re-fetching from the provider.
+function switchFormat(mode: "auto" | "hls" | "mp4") {
+  if (mode === streamMode) return;
+  streamMode = mode;
+  // Update the URL ?fmt= param (without triggering loadStream — the
+  // $effect guard bails because provider/episodeId don't change)
+  const aid = providerAnimeId;
+  navigate(
+    `/watch/${currentProvider}/${animeId}/${slug}/${currentEpId}?aid=${aid}${mode !== "auto" ? `&fmt=${mode}` : ""}`,
+  );
+  // Re-play the cached stream with the new format
+  if (lastStream) {
+    loading = true;
+    error = null;
+    using = "";
+    hls?.destroy();
+    hls = null;
+    playStream(lastStream);
+  }
+}
+
+// Helper: returns "&fmt=mode" or "" for URL building
+function fmtParam(): string {
+  return streamMode !== "auto" ? `&fmt=${streamMode}` : "";
 }
 
 // Prev/next work by episode number so they're usable even before the
@@ -351,6 +436,14 @@ function nextEpisode() {
             </option>
           {/each}
         {/if}
+      </select>
+    </label>
+    <label>
+      <span class="switcher-label">format</span>
+      <select value={streamMode} onchange={(e) => switchFormat(e.currentTarget.value as "auto" | "hls" | "mp4")}>
+        <option value="auto" selected={streamMode === "auto"}>auto</option>
+        <option value="hls" selected={streamMode === "hls"}>hls</option>
+        <option value="mp4" selected={streamMode === "mp4"}>mp4</option>
       </select>
     </label>
     <div class="ep-nav">
