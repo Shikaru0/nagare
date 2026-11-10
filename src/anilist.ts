@@ -1,6 +1,9 @@
 const ANILIST_URL = "https://graphql.anilist.co";
 
-async function gql<T>(query: string, variables: Record<string, unknown>): Promise<T> {
+async function gql<T>(
+  query: string,
+  variables: Record<string, unknown>,
+): Promise<T> {
   const res = await fetch(ANILIST_URL, {
     method: "POST",
     headers: { "Content-Type": "application/json" },

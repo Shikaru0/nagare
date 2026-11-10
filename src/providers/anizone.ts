@@ -3,7 +3,13 @@
 // Flow: search /anime?search={title} → episodes /anime/{slug} →
 // stream /anime/{slug}/{ep} (m3u8 + subtitles embedded in page HTML).
 
-import type { AnimeRef, Episode, Provider, StreamRequest, StreamResult } from "./types";
+import type {
+  AnimeRef,
+  Episode,
+  Provider,
+  StreamRequest,
+  StreamResult,
+} from "./types";
 
 const BASE = "https://anizone.to";
 
@@ -25,7 +31,10 @@ function decodeJson(raw: string): string {
 
 // Extract all JSON.parse('...') blobs from the HTML, return the first
 // one that parses to the expected shape.
-function extractJsonArray<T>(html: string, check: (item: unknown) => item is T): T[] {
+function extractJsonArray<T>(
+  html: string,
+  check: (item: unknown) => item is T,
+): T[] {
   for (const m of html.matchAll(/JSON\.parse\('([^']+)'\)/g)) {
     try {
       const data = JSON.parse(decodeJson(m[1] ?? ""));
@@ -54,11 +63,18 @@ type AzEpisode = {
 
 type AzPlayerData = {
   src: string;
-  subtitles?: { file: string; language: string; format: string; default?: boolean }[];
+  subtitles?: {
+    file: string;
+    language: string;
+    format: string;
+    default?: boolean;
+  }[];
 };
 
 function isSearchResult(v: unknown): v is AzSearchResult {
-  return typeof v === "object" && v !== null && "slug" in v && "main_title" in v;
+  return (
+    typeof v === "object" && v !== null && "slug" in v && "main_title" in v
+  );
 }
 
 function isEpisode(v: unknown): v is AzEpisode {
@@ -80,7 +96,9 @@ async function fetchHtml(url: string): Promise<string> {
 // Search by title, then pick the result whose title_list best matches
 // the AniList title. Falls back to the first result if no exact match.
 async function findAnime(ref: AnimeRef): Promise<AzSearchResult | null> {
-  const html = await fetchHtml(`${BASE}/anime?search=${encodeURIComponent(ref.title)}`);
+  const html = await fetchHtml(
+    `${BASE}/anime?search=${encodeURIComponent(ref.title)}`,
+  );
   const results = extractJsonArray(html, isSearchResult);
   if (results.length === 0) return null;
 

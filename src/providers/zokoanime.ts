@@ -57,7 +57,8 @@ function decodePlayerConfig(blob: string): ZkPlayerConfig {
   const bytes = Buffer.from(blob, "base64");
   const decoded = Buffer.alloc(bytes.length);
   for (let i = 0; i < bytes.length; i++) {
-    decoded[i] = (bytes[i] ?? 0) ^ OBFUSCATION_KEY.charCodeAt(i % OBFUSCATION_KEY.length);
+    decoded[i] =
+      (bytes[i] ?? 0) ^ OBFUSCATION_KEY.charCodeAt(i % OBFUSCATION_KEY.length);
   }
   return JSON.parse(decoded.toString("utf8")) as ZkPlayerConfig;
 }
@@ -115,7 +116,10 @@ async function getAniListInfo(anilistId: number): Promise<AniListInfo> {
     episodes: anime.episodes,
     nextAiringEpisode: anime.nextAiringEpisode?.episode ?? null,
   };
-  anilistCache.set(anilistId, { info, expires: Date.now() + ANILIST_CACHE_TTL });
+  anilistCache.set(anilistId, {
+    info,
+    expires: Date.now() + ANILIST_CACHE_TTL,
+  });
   return info;
 }
 
@@ -137,7 +141,10 @@ async function findMaxEpisode(malId: number): Promise<number> {
 
   // Confirm ep 1 exists — if not, zokoanime doesn't have this show at all.
   if (!(await episodeExists(malId, 1))) {
-    maxEpisodeCache.set(malId, { max: 0, expires: Date.now() + MAX_EP_CACHE_TTL });
+    maxEpisodeCache.set(malId, {
+      max: 0,
+      expires: Date.now() + MAX_EP_CACHE_TTL,
+    });
     return 0;
   }
 
@@ -157,7 +164,10 @@ async function findMaxEpisode(malId: number): Promise<number> {
     else hi = mid;
   }
 
-  maxEpisodeCache.set(malId, { max: lo, expires: Date.now() + MAX_EP_CACHE_TTL });
+  maxEpisodeCache.set(malId, {
+    max: lo,
+    expires: Date.now() + MAX_EP_CACHE_TTL,
+  });
   return lo;
 }
 

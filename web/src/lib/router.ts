@@ -3,7 +3,9 @@
 import { writable } from "svelte/store";
 
 export const path = writable(
-  typeof window !== "undefined" ? window.location.pathname + window.location.search : "/",
+  typeof window !== "undefined"
+    ? window.location.pathname + window.location.search
+    : "/",
 );
 
 export function navigate(to: string) {
@@ -21,7 +23,13 @@ if (typeof window !== "undefined") {
 export type Route =
   | { name: "home" }
   | { name: "anime"; id: number }
-  | { name: "watch"; provider: string; animeId: number; slug: string; episodeId: string }
+  | {
+      name: "watch";
+      provider: string;
+      animeId: number;
+      slug: string;
+      episodeId: string;
+    }
   | { name: "notfound" };
 
 export function matchRoute(p: string): Route {

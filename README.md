@@ -31,23 +31,23 @@ bun run start  # serve dist/ + api on :4141
 
 Each provider implements `findEpisodes(ref)` and `getStream(req)`. The registry tries providers in order — first hit wins.
 
-| Provider | Source | Audio | Subs | Cloudflare | Speed |
-|---|---|---|---|---|---|
-| `zokoanime` | zokoanime.video (embed) | JP | EN softsubs (toggleable VTT) | none | ~2s |
-| `anizone` | anizone.to (scraper) | JP | EN & more (SRT→VTT) | none | ~3s |
-| `animeunity` | animeunity.co (scraper) | JP | IT hardsubs (burned in) | session cookies | ~2s |
+| Provider     | Source                  | Audio | Subs                         | Cloudflare      | Speed |
+| ------------ | ----------------------- | ----- | ---------------------------- | --------------- | ----- |
+| `zokoanime`  | zokoanime.video (embed) | JP    | EN softsubs (toggleable VTT) | none            | ~2s   |
+| `anizone`    | anizone.to (scraper)    | JP    | EN & more (SRT→VTT)          | none            | ~3s   |
+| `animeunity` | animeunity.co (scraper) | JP    | IT hardsubs (burned in)      | session cookies | ~2s   |
 
 ## API
 
-| Route | Description |
-|---|---|
-| `GET /api/providers` | List available provider names |
-| `GET /api/anilist/search?q=` | AniList search |
-| `GET /api/anilist/info?id=` | AniList anime info |
-| `GET /api/episodes?anilistId=&title=` | Episode list via provider registry (`?provider=` for specific, `?provider=&slug=` for slug-only lookup) |
-| `GET /api/stream?provider=&animeId=&slug=&episodeId=` | Stream URL (HLS/MP4 + subtitles) |
-| `GET /api/subtitle?url=&referer=` | Subtitle proxy (SRT→VTT conversion, optional Referer for CDNs that require it) |
-| `GET /api/proxy?url=&referer=` | HLS/MP4 proxy (Referer + Range forwarding, m3u8 rewriting) |
+| Route                                                 | Description                                                                                             |
+| ----------------------------------------------------- | ------------------------------------------------------------------------------------------------------- |
+| `GET /api/providers`                                  | List available provider names                                                                           |
+| `GET /api/anilist/search?q=`                          | AniList search                                                                                          |
+| `GET /api/anilist/info?id=`                           | AniList anime info                                                                                      |
+| `GET /api/episodes?anilistId=&title=`                 | Episode list via provider registry (`?provider=` for specific, `?provider=&slug=` for slug-only lookup) |
+| `GET /api/stream?provider=&animeId=&slug=&episodeId=` | Stream URL (HLS/MP4 + subtitles)                                                                        |
+| `GET /api/subtitle?url=&referer=`                     | Subtitle proxy (SRT→VTT conversion, optional Referer for CDNs that require it)                          |
+| `GET /api/proxy?url=&referer=`                        | HLS/MP4 proxy (Referer + Range forwarding, m3u8 rewriting)                                              |
 
 ## Routes
 

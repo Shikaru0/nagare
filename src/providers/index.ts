@@ -56,11 +56,19 @@ export async function findEpisodesFrom(
 ): Promise<EpisodeResult> {
   const p = getProvider(providerName);
   if (!p)
-    return { provider: null, episodes: [], error: `unknown provider: ${providerName}` };
+    return {
+      provider: null,
+      episodes: [],
+      error: `unknown provider: ${providerName}`,
+    };
   try {
     const eps = await p.findEpisodes(ref);
     if (eps && eps.length > 0) return { provider: p.name, episodes: eps };
-    return { provider: null, episodes: [], error: `${providerName}: no episodes` };
+    return {
+      provider: null,
+      episodes: [],
+      error: `${providerName}: no episodes`,
+    };
   } catch (e) {
     return {
       provider: null,
