@@ -59,7 +59,7 @@ function rewriteM3u8(
 }
 
 import { getAnime, searchAnime } from "./anilist";
-import { findEpisodes, getProvider } from "./providers";
+import { findEpisodes, findEpisodesFrom, getProvider, providers } from "./providers";
 
 Bun.serve({
   port,
@@ -69,6 +69,9 @@ Bun.serve({
 
     // -- API routes --
     if (url.pathname.startsWith("/api/")) {
+      if (url.pathname === "/api/providers") {
+        return json({ providers: providers.map((p) => p.name) });
+      }
       if (url.pathname === "/api/anilist/search") {
         const q = url.searchParams.get("q")?.trim();
         if (!q) return json({ error: "missing ?q=" }, 400);
@@ -90,10 +93,45 @@ Bun.serve({
       if (url.pathname === "/api/episodes") {
         const anilistId = Number(url.searchParams.get("anilistId"));
         const title = url.searchParams.get("title")?.trim();
-        if (!anilistId || !title) {
-          return json({ error: "missing ?anilistId= and ?title=" }, 400);
+        const wantedProvider = url.searchParams.get("provider")?.trim();
+        const slug = url.searchParams.get("slug")?.trim();
+        // If provider + slug are given (no title), fetch episodes by slug
+        // directly — skips the AniList title search. Used by the watch
+        // page to populate the episode dropdown without the AniList ID.
+        if (wantedProvider && slug && !title) {
+          const p = getProvider(wantedProvider);
+          if (p?.findEpisodesBySlug) {
+            try {
+              const eps = await p.findEpisodesBySlug(slug);
+              if (eps && eps.length > 0) {
+                return json({ provider: p.name, episodes: eps });
+              }
+              return json({ provider: null, episodes: [], error: "no episodes" });
+            } catch (e) {
+              return json({
+                provider: null,
+                episodes: [],
+                error: e instanceof Error ? e.message : String(e),
+              });
+            }
+          }
+          return json({
+            provider: null,
+            episodes: [],
+            error: `${wantedProvider} doesn't support slug-based lookup`,
+          });
         }
-        const result = await findEpisodes({ anilistId, title });
+        if (!anilistId || !title) {
+          return json(
+            { error: "missing ?anilistId= and ?title= (or ?provider= and ?slug=)" },
+            400,
+          );
+        }
+        // If ?provider= is given, fetch from that specific provider only
+        // (for the switcher). Otherwise iterate the registry.
+        const result = wantedProvider
+          ? await findEpisodesFrom(wantedProvider, { anilistId, title })
+          : await findEpisodes({ anilistId, title });
         return json(result);
       }
       if (url.pathname === "/api/stream") {

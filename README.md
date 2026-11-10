@@ -31,7 +31,7 @@ Each provider implements `findEpisodes(ref)` and `getStream(req)`. The registry 
 | Provider | Source | Audio | Subs | Speed |
 |---|---|---|---|---|
 | `anizone` | anizone.to (scraper) | JP | EN (SRT→VTT) | ~3s |
-| `animeunity` | animeunity.co (scraper) | IT hardsubs | — | ~2s |
+| `animeunity` | animeunity.co (scraper) | JP | IT hardsubs | ~2s |
 
 ## API
 

@@ -255,6 +255,59 @@ body {
   border-radius: 8px;
 }
 
+.switcher-bar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 1rem;
+  margin: 0.5rem 0 1rem;
+  font-size: 0.85rem;
+  color: var(--color-mute);
+}
+
+.switcher-bar label {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.switcher-label {
+  color: var(--color-mute);
+  font-size: 0.75rem;
+  text-transform: lowercase;
+}
+
+.switcher-bar select {
+  padding: 0.25rem 0.5rem;
+  border-radius: 6px;
+  border: 1px solid var(--color-line);
+  background: var(--color-card);
+  color: var(--color-ink);
+  font-size: 0.85rem;
+  cursor: pointer;
+  max-width: 14rem;
+}
+
+.switcher-bar select:focus {
+  outline: none;
+  border-color: var(--color-pop);
+}
+
+.ep-nav {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.ep-nav .btn-ghost {
+  margin: 0;
+  padding: 0.2rem 0.5rem;
+}
+
+.ep-nav .btn-ghost:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
 .stream-source {
   margin-top: 0.4rem;
   font-size: 0.75rem;

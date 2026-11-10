@@ -42,3 +42,25 @@ export async function findEpisodes(ref: AnimeRef): Promise<EpisodeResult> {
     error: errors.length ? errors.join("; ") : "no matches",
   };
 }
+
+// Fetch episodes from one specific provider (for manual provider switching).
+// Returns null result if that provider has no episodes.
+export async function findEpisodesFrom(
+  providerName: string,
+  ref: AnimeRef,
+): Promise<EpisodeResult> {
+  const p = getProvider(providerName);
+  if (!p)
+    return { provider: null, episodes: [], error: `unknown provider: ${providerName}` };
+  try {
+    const eps = await p.findEpisodes(ref);
+    if (eps && eps.length > 0) return { provider: p.name, episodes: eps };
+    return { provider: null, episodes: [], error: `${providerName}: no episodes` };
+  } catch (e) {
+    return {
+      provider: null,
+      episodes: [],
+      error: `${providerName}: ${e instanceof Error ? e.message : String(e)}`,
+    };
+  }
+}

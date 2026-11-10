@@ -41,6 +41,11 @@ export type Provider = {
   name: string;
   findEpisodes(ref: AnimeRef): Promise<Episode[] | null>;
   getStream(req: StreamRequest): Promise<StreamResult>;
+  // Fetch episodes directly by the provider's slug (skips title search).
+  // Used by the watch page to populate the episode dropdown without
+  // needing the AniList title. Optional — providers that don't support
+  // it return null.
+  findEpisodesBySlug?(slug: string): Promise<Episode[] | null>;
 };
 
 export type EpisodeResult = {

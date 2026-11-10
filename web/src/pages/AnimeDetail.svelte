@@ -22,6 +22,11 @@ let provider = $state<string | null>(null);
 let epsLoading = $state(false);
 let epsError = $state<string | null>(null);
 
+// Provider switcher state
+let providerList = $state<string[]>([]);
+// "auto" = iterate all providers; specific name = fetch from that one only
+let currentProvider = $state<string>("auto");
+
 // Fetch AniList info, then episodes via provider registry (needs the AniList
 // ID + the title — providers can match by either)
 $effect(() => {
@@ -31,24 +36,45 @@ $effect(() => {
   getAnime(id)
     .then((a) => {
       anime = a;
-      const title = a.title.english ?? a.title.romaji;
-      epsLoading = true;
-      const qs = new URLSearchParams({ anilistId: String(id), title });
-      return fetch(`/api/episodes?${qs}`)
-        .then((r) => r.json())
-        .then((d: { provider: string | null; episodes: Episode[]; error?: string }) => {
-          episodes = d.episodes ?? [];
-          provider = d.provider;
-          epsError = d.error ?? null;
-        })
-        .catch((e) => {
-          epsError = e instanceof Error ? e.message : String(e);
-        })
-        .finally(() => (epsLoading = false));
+      fetchEpisodes();
     })
     .catch((e) => (error = e instanceof Error ? e.message : String(e)))
     .finally(() => (loading = false));
 });
+
+// Load provider list for the switcher
+fetch("/api/providers")
+  .then((r) => r.json())
+  .then((d: { providers: string[] }) => {
+    providerList = ["auto", ...d.providers];
+  })
+  .catch(() => {});
+
+function fetchEpisodes() {
+  if (!anime) return;
+  const title = anime.title.english ?? anime.title.romaji;
+  epsLoading = true;
+  epsError = null;
+  const qs = new URLSearchParams({ anilistId: String(id), title });
+  if (currentProvider !== "auto") qs.set("provider", currentProvider);
+  fetch(`/api/episodes?${qs}`)
+    .then((r) => r.json())
+    .then((d: { provider: string | null; episodes: Episode[]; error?: string }) => {
+      episodes = d.episodes ?? [];
+      provider = d.provider;
+      epsError = d.error ?? null;
+    })
+    .catch((e) => {
+      epsError = e instanceof Error ? e.message : String(e);
+    })
+    .finally(() => (epsLoading = false));
+}
+
+function switchProvider(newProvider: string) {
+  if (newProvider === currentProvider) return;
+  currentProvider = newProvider;
+  fetchEpisodes();
+}
 
 function stripHtml(s: string | null) {
   if (!s) return "";
@@ -86,10 +112,22 @@ function stripHtml(s: string | null) {
     {/if}
 
     <section class="episodes">
-      <h2>
-        Episodes
-        {#if provider}<span class="ep-provider">via {provider}</span>{/if}
-      </h2>
+      <div class="episodes-head">
+        <h2>
+          Episodes
+          {#if provider}<span class="ep-provider">via {provider}</span>{/if}
+        </h2>
+        <div class="switcher-bar">
+          {#each providerList as p (p)}
+            <button
+              class="btn-ghost"
+              onclick={() => switchProvider(p)}
+              style:font-weight={currentProvider === p ? "bold" : "normal"}
+              disabled={epsLoading}
+            >{p}</button>
+          {/each}
+        </div>
+      </div>
 
       {#if epsLoading}
         <p class="muted">looking up streams…</p>
@@ -103,7 +141,7 @@ function stripHtml(s: string | null) {
             <a
               class="episode"
               href={ep.slug
-                ? `/watch/${provider}/${ep.animeId ?? 0}/${ep.slug}/${ep.id}`
+                ? `/watch/${provider}/${id}/${ep.slug}/${ep.id}?aid=${ep.animeId ?? 0}`
                 : `/watch/${ep.id}`}
               title={ep.title ?? `Episode ${ep.number}`}
             >

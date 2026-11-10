@@ -97,8 +97,14 @@ async function findAnime(ref: AnimeRef): Promise<AzSearchResult | null> {
 async function findEpisodes(ref: AnimeRef): Promise<Episode[] | null> {
   const anime = await findAnime(ref);
   if (!anime) return null;
+  return findEpisodesBySlug(anime.slug);
+}
 
-  const html = await fetchHtml(`${BASE}/anime/${anime.slug}`);
+// Fetch episodes directly by the anizone anime slug — skips the title
+// search. Used by the watch page to populate the episode dropdown
+// without needing the AniList title.
+async function findEpisodesBySlug(slug: string): Promise<Episode[] | null> {
+  const html = await fetchHtml(`${BASE}/anime/${slug}`);
   const eps = extractJsonArray(html, isEpisode);
   if (eps.length === 0) return null;
 
@@ -106,8 +112,8 @@ async function findEpisodes(ref: AnimeRef): Promise<Episode[] | null> {
     id: e.slug,
     number: Number(e.slug) || 0,
     title: e.title_list?.["1"] ?? e.title_list?.["5"],
-    animeId: 0, // not used — anizone uses slug + episode slug in URL
-    slug: anime.slug,
+    animeId: 0,
+    slug,
   }));
 }
 
@@ -138,5 +144,6 @@ async function getStream(req: StreamRequest): Promise<StreamResult> {
 export const anizoneProvider: Provider = {
   name: "anizone",
   findEpisodes,
+  findEpisodesBySlug,
   getStream,
 };
