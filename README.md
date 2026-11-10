@@ -1,6 +1,7 @@
 # nagare
 
 [![CI](https://github.com/Shikaru0/nagare/actions/workflows/ci.yml/badge.svg)](https://github.com/Shikaru0/nagare/actions/workflows/ci.yml)
+[![Release](https://github.com/Shikaru0/nagare/actions/workflows/release.yml/badge.svg)](https://github.com/Shikaru0/nagare/actions/workflows/release.yml)
 
 Self-hosted anime streaming + manga reader. AniList for metadata, in-house scrapers (`src/providers/`, `src/manga-providers/`) for episodes and chapters.
 
@@ -17,6 +18,15 @@ The API server (`src/index.ts`) serves the built SPA from `dist/` in production.
 bun run build  # build SPA to dist/
 bun run start  # serve dist/ + api on :4141
 ```
+
+## Docker
+
+```bash
+docker pull ghcr.io/shikaru0/nagare:latest
+docker run -p 4141:4141 ghcr.io/shikaru0/nagare:latest
+```
+
+The Release workflow (`.github/workflows/release.yml`) builds and pushes the image to GHCR on every push to `main` (tagged `latest` + commit SHA) and on version tags `v*` (tagged with the version number).
 
 ## Stack
 
@@ -41,13 +51,13 @@ Each provider implements `findEpisodes(ref)` and `getStream(req)`. The registry 
 
 ## Manga providers
 
-Each provider implements `findChapters(ref)` and `getPages(req)`. The registry tries providers in order — first hit wins.
+Each provider implements `findChapters(ref)` and `getPages(req)`. Same registry pattern as anime — first hit wins.
 
 | Provider   | Source                             | Cloudflare | Notes                                                                                                      |
 | ---------- | ---------------------------------- | ---------- | ---------------------------------------------------------------------------------------------------------- |
 | `mangadex` | api.mangadex.org (official API v5) | none       | EN chapters, deduped by chapter number, paginated. Page images served directly from CDN (no proxy needed). |
 
-Some manga are split across multiple MangaDex entries without formal sequel relations (e.g. Chainsaw Man Part 1 vs Part 2). Chapters from unlinked sequels won't appear automatically.
+Some manga are split across multiple MangaDex entries without formal sequel relations (e.g. Chainsaw Man Part 1 vs Part 2). The chapter list reflects what's available under the matched entry — chapters from unlinked sequels won't appear automatically.
 
 ## API
 
