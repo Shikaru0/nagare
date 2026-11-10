@@ -5,6 +5,20 @@
 
 Self-hosted anime streaming + manga reader. AniList for metadata, in-house scrapers (`src/providers/`, `src/manga-providers/`) for episodes and chapters.
 
+## Install
+
+**Docker (recommended):** See [Docker](#docker) for instructions.
+
+**From source:**
+
+```bash
+git clone https://github.com/Shikaru0/nagare.git
+cd nagare
+bun install
+bun run build
+bun run start
+```
+
 ## Dev
 
 ```bash
