@@ -1,0 +1,7 @@
+services:
+  nagare:
+    build: .
+    container_name: nagare
+    ports:
+      - "4141:4141"
+    restart: unless-stopped

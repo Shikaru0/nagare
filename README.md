@@ -35,10 +35,22 @@ bun run start  # serve dist/ + api on :4141
 
 ## Docker
 
+**Docker Compose (builds from source):**
+
+```bash
+git clone https://github.com/Shikaru0/nagare.git
+cd nagare
+docker compose up -d
+```
+
+**Or the prebuilt image:**
+
 ```bash
 docker pull ghcr.io/shikaru0/nagare:latest
 docker run -p 4141:4141 ghcr.io/shikaru0/nagare:latest
 ```
+
+Then open http://localhost:4141. nagare is stateless — progress lives in the browser's localStorage, so no volumes are needed.
 
 The Release workflow (`.github/workflows/release.yml`) builds and pushes the image to GHCR on every push to `main` (tagged `latest` + commit SHA) and on version tags `v*` (tagged with the version number).
 
