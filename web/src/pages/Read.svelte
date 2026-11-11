@@ -23,6 +23,17 @@
   let error = $state<string | null>(null);
   let pages = $state<string[]>([]);
 
+  // Reader mode: "strip" = vertical scroll, "page" = one page at a time
+  // with arrow keys / buttons. Persisted in localStorage.
+  type ReaderMode = "strip" | "page";
+  let readerMode = $state<ReaderMode>(
+    typeof localStorage !== "undefined" &&
+      localStorage.getItem("nagare:reader:mode") === "page"
+      ? "page"
+      : "strip",
+  );
+  let pageIndex = $state(0);
+
   // Progress recording: debounced scroll listener writes scrollPct to
   // localStorage. Restore happens after pages have loaded (and the
   // browser has laid them out), so the scroll target exists.
@@ -81,11 +92,20 @@
     };
     window.addEventListener("scroll", onScroll, { passive: true });
 
+    // Arrow keys page through in page mode.
+    const onKey = (e: KeyboardEvent) => {
+      if (readerMode !== "page") return;
+      if (e.key === "ArrowLeft") prevPage();
+      else if (e.key === "ArrowRight") nextPage();
+    };
+    window.addEventListener("keydown", onKey);
+
     return () => {
       // Best-effort final flush before unmount.
       recordProgress();
       if (scrollTimer) clearTimeout(scrollTimer);
       window.removeEventListener("scroll", onScroll);
+      window.removeEventListener("keydown", onKey);
     };
   });
 
@@ -138,8 +158,17 @@
       .then((data) => {
         if (data.error) throw new Error(data.error);
         pages = data.pages ?? [];
-        // Defer restore until after the DOM has the <img> elements laid out.
-        setTimeout(restoreScroll, 100);
+        if (readerMode === "page") {
+          // Restore the page index from the saved scroll percentage.
+          pageIndex = Math.min(
+            Math.max(Math.ceil(pendingRestorePct * pages.length) - 1, 0),
+            Math.max(pages.length - 1, 0),
+          );
+          pendingRestorePct = 0;
+        } else {
+          // Defer restore until after the DOM has the <img> elements laid out.
+          setTimeout(restoreScroll, 100);
+        }
       })
       .catch((e) => {
         error = e instanceof Error ? e.message : String(e);
@@ -163,6 +192,7 @@
   }
 
   function recordProgress() {
+    if (readerMode === "page") return; // strip-mode scroll metric only
     const ch = chapters.find((c) => c.id === currentChapterId);
     if (!ch || !mangaTitle) return;
     const scrollable =
@@ -189,6 +219,24 @@
     if (newChId === currentChapterId) return;
     const ch = chapters.find((c) => c.id === newChId);
     navigate(`/read/${provider}/${mangaId}/${ch?.slug ?? slug}/${newChId}`);
+  }
+
+  function prevPage() {
+    if (pageIndex > 0) pageIndex--;
+  }
+
+  function nextPage() {
+    if (pageIndex < pages.length - 1) pageIndex++;
+    else nextChapter(); // last page → continue into the next chapter
+  }
+
+  function setMode(m: ReaderMode) {
+    if (m === readerMode) return;
+    readerMode = m;
+    pageIndex = 0;
+    try {
+      localStorage.setItem("nagare:reader:mode", m);
+    } catch {}
   }
 
   function prevChapter() {
@@ -231,6 +279,18 @@
         >next →</button
       >
     </div>
+    <div class="mode-toggle">
+      <button
+        class="btn-ghost"
+        class:active={readerMode === "strip"}
+        onclick={() => setMode("strip")}>strip</button
+      >
+      <button
+        class="btn-ghost"
+        class:active={readerMode === "page"}
+        onclick={() => setMode("page")}>paged</button
+      >
+    </div>
   </div>
 
   {#if loading}
@@ -242,10 +302,25 @@
   {/if}
 
   {#if pages.length > 0}
-    <div class="page-column">
-      {#each pages as src, i (src)}
-        <img {src} alt={`page ${i + 1}`} loading="lazy" />
-      {/each}
-    </div>
+    {#if readerMode === "page"}
+      <div class="page-view">
+        <img src={pages[pageIndex]} alt={`page ${pageIndex + 1}`} />
+        <div class="page-nav">
+          <button
+            class="btn-ghost"
+            onclick={prevPage}
+            disabled={pageIndex === 0}>←</button
+          >
+          <span class="muted">{pageIndex + 1} / {pages.length}</span>
+          <button class="btn-ghost" onclick={nextPage}>→</button>
+        </div>
+      </div>
+    {:else}
+      <div class="page-column">
+        {#each pages as src, i (src)}
+          <img {src} alt={`page ${i + 1}`} loading="lazy" />
+        {/each}
+      </div>
+    {/if}
   {/if}
 </main>
