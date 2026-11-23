@@ -2,10 +2,9 @@
   import { type AnimeDetail, getAnime } from "../../../src/anilist";
   import { navigate } from "../lib/router";
   import {
-    getAnimeProgress,
-    isEpisodeWatched,
-    updateAnimeProgress,
     animeProgress,
+    getAnimeProgress,
+    updateAnimeProgress,
   } from "../lib/progress";
 
   type Episode = {
@@ -27,12 +26,6 @@
   let provider = $state<string | null>(null);
   let epsLoading = $state(false);
   let epsError = $state<string | null>(null);
-
-  // Subscribe to the watched set so the "watched" badge re-renders live.
-  let watched = $state<Record<string, boolean>>({});
-  animeProgress.subscribe((s) => {
-    watched = { ...s.watched };
-  });
 
   // Provider switcher state
   let providerList = $state<string[]>([]);
@@ -148,8 +141,8 @@
       </section>
     {/if}
 
-    {#if getAnimeProgress(id) && episodes.length > 0}
-      {@const saved = getAnimeProgress(id)!}
+    {#if $animeProgress.byId[id] && episodes.length > 0}
+      {@const saved = $animeProgress.byId[id]!}
       {@const resumeEp =
         episodes.find((e) => e.id === saved.episodeId) ??
         episodes.find((e) => e.number === saved.episodeNumber)}
@@ -203,7 +196,7 @@
               <span class="ep-num">{ep.number}</span>
               <span class="ep-title">{ep.title ?? ""}</span>
               {#if ep.isFiller}<span class="ep-filler">filler</span>{/if}
-              {#if watched[`${id}:${ep.number}`]}
+              {#if $animeProgress.watched[`${id}:${ep.number}`]}
                 <span class="ep-watched" title="watched">✓</span>
               {/if}
             </a>

@@ -3,7 +3,7 @@
 // Records are kept small so the store stays cheap even with thousands of
 // entries — only what's needed to render continue-rails and seek on load.
 
-import { writable } from "svelte/store";
+import { get, writable } from "svelte/store";
 
 const ANIME_KEY = "nagare:progress:anime";
 const MANGA_KEY = "nagare:progress:manga";
@@ -99,11 +99,11 @@ export function markEpisodeWatched(anilistId: number, episodeNumber: number) {
 }
 
 export function isEpisodeWatched(anilistId: number, episodeNumber: number) {
-  return Boolean(initialAnime.watched[`${anilistId}:${episodeNumber}`]);
+  return Boolean(get(animeProgress).watched[`${anilistId}:${episodeNumber}`]);
 }
 
 export function getAnimeProgress(anilistId: number): AnimeProgress | null {
-  return initialAnime.byId[anilistId] ?? null;
+  return get(animeProgress).byId[anilistId] ?? null;
 }
 
 // -- Manga -----------------------------------------------------------------
@@ -127,23 +127,31 @@ export function markChapterRead(anilistId: number, chapterNumber: number) {
 }
 
 export function isChapterRead(anilistId: number, chapterNumber: number) {
-  return Boolean(initialManga.read[`${anilistId}:${chapterNumber}`]);
+  return Boolean(get(mangaProgress).read[`${anilistId}:${chapterNumber}`]);
 }
 
 export function getMangaProgress(anilistId: number): MangaProgress | null {
-  return initialManga.byId[anilistId] ?? null;
+  return get(mangaProgress).byId[anilistId] ?? null;
 }
 
 // -- Continue rails --------------------------------------------------------
 
-export function continueAnime(limit = 8): AnimeProgress[] {
-  return Object.values(initialAnime.byId)
+// Callers passing a store snapshot (e.g. `$animeProgress` in a component)
+// make the rails reactive; the default reads the latest value on demand.
+export function continueAnime(
+  store: AnimeStore = get(animeProgress),
+  limit = 8,
+): AnimeProgress[] {
+  return Object.values(store.byId)
     .sort((a, b) => b.updatedAt - a.updatedAt)
     .slice(0, limit);
 }
 
-export function continueManga(limit = 8): MangaProgress[] {
-  return Object.values(initialManga.byId)
+export function continueManga(
+  store: MangaStore = get(mangaProgress),
+  limit = 8,
+): MangaProgress[] {
+  return Object.values(store.byId)
     .sort((a, b) => b.updatedAt - a.updatedAt)
     .slice(0, limit);
 }

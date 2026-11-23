@@ -28,12 +28,6 @@
   let chLoading = $state(false);
   let chError = $state<string | null>(null);
 
-  // Live-updating read set for the chapter badges.
-  let read = $state<Record<string, boolean>>({});
-  mangaProgress.subscribe((s) => {
-    read = { ...s.read };
-  });
-
   // Provider switcher state (same as AnimeDetail)
   let providerList = $state<string[]>([]);
   let currentProvider = $state<string>("auto");
@@ -144,8 +138,8 @@
       </section>
     {/if}
 
-    {#if getMangaProgress(id) && chapters.length > 0}
-      {@const saved = getMangaProgress(id)!}
+    {#if $mangaProgress.byId[id] && chapters.length > 0}
+      {@const saved = $mangaProgress.byId[id]!}
       {@const resumeCh =
         chapters.find((c) => c.id === saved.chapterId) ??
         chapters.find((c) => c.number === saved.chapterNumber)}
@@ -198,7 +192,7 @@
             >
               <span class="ep-num">{ch.number}</span>
               <span class="ep-title">{ch.title ?? ""}</span>
-              {#if read[`${id}:${ch.number}`]}
+              {#if $mangaProgress.read[`${id}:${ch.number}`]}
                 <span class="ep-watched" title="read">✓</span>
               {/if}
             </a>

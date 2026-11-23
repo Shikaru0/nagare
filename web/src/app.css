@@ -376,6 +376,34 @@ body {
   font-size: 1rem;
 }
 
+/* fullscreen reader */
+.fs-toggle {
+  margin-bottom: 0;
+  padding: 0.2rem 0.8rem;
+  border: 1px solid var(--color-line);
+  border-radius: 6px;
+}
+
+/* Drop the .wrap max-width so pages can scale up, and size the current
+   page to the screen: strip scrolls full-width, paged fills the height
+   (9rem ≈ switcher bar + page nav + gaps — tune if bars change). */
+.reader:fullscreen {
+  background: var(--color-paper);
+  max-width: none;
+  padding: 0.75rem;
+  overflow-y: auto;
+}
+
+.reader:fullscreen .page-column img {
+  max-width: 100%;
+}
+
+.reader:fullscreen .page-view img {
+  max-height: calc(100vh - 9rem);
+  max-width: 100%;
+  width: auto;
+}
+
 /* home mode toggle */
 .mode-toggle {
   display: flex;

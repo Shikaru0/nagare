@@ -12,6 +12,7 @@
     "dev": "concurrently -n api,web -c blue,magenta \"bun run src/index.ts\" \"bunx vite\"",
     "build": "bunx vite build",
     "start": "bun run src/index.ts",
+    "test": "bun test",
     "verify": "bun check && bun lint && bun fmt --check"
   },
   "devDependencies": {

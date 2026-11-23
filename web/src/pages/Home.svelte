@@ -8,8 +8,10 @@
   import AnimeCard from "../components/AnimeCard.svelte";
   import { navigate } from "../lib/router";
   import {
+    animeProgress,
     continueAnime,
     continueManga,
+    mangaProgress,
     type AnimeProgress,
     type MangaProgress,
   } from "../lib/progress";
@@ -22,13 +24,8 @@
   let loading = $state(false);
   let error = $state<string | null>(null);
 
-  // Continue rails — populated once on mount from localStorage.
-  let animeRail = $state<AnimeProgress[]>([]);
-  let mangaRail = $state<MangaProgress[]>([]);
-  $effect(() => {
-    animeRail = continueAnime();
-    mangaRail = continueManga();
-  });
+  let animeRail = $derived(continueAnime($animeProgress));
+  let mangaRail = $derived(continueManga($mangaProgress));
 
   async function search() {
     if (!query.trim()) return;

@@ -34,6 +34,18 @@
   );
   let pageIndex = $state(0);
 
+  // Fullscreen runs the browser Fullscreen API on the reader element.
+  let readerEl = $state<HTMLElement | null>(null);
+  let isFullscreen = $state(false);
+
+  function toggleFullscreen() {
+    if (document.fullscreenElement) {
+      document.exitFullscreen();
+    } else {
+      readerEl?.requestFullscreen().catch(() => {});
+    }
+  }
+
   // Progress recording: debounced scroll listener writes scrollPct to
   // localStorage. Restore happens after pages have loaded (and the
   // browser has laid them out), so the scroll target exists.
@@ -100,12 +112,18 @@
     };
     window.addEventListener("keydown", onKey);
 
+    const onFsChange = () => {
+      isFullscreen = Boolean(document.fullscreenElement);
+    };
+    document.addEventListener("fullscreenchange", onFsChange);
+
     return () => {
       // Best-effort final flush before unmount.
       recordProgress();
       if (scrollTimer) clearTimeout(scrollTimer);
       window.removeEventListener("scroll", onScroll);
       window.removeEventListener("keydown", onKey);
+      document.removeEventListener("fullscreenchange", onFsChange);
     };
   });
 
@@ -251,7 +269,7 @@
   }
 </script>
 
-<main class="wrap reader">
+<main class="wrap reader" bind:this={readerEl}>
   <div class="switcher-bar">
     <button class="btn-ghost" onclick={() => history.back()}>← back</button>
     <label>
@@ -291,6 +309,9 @@
         onclick={() => setMode("page")}>paged</button
       >
     </div>
+    <button class="btn-ghost fs-toggle" onclick={toggleFullscreen}
+      >{isFullscreen ? "exit fs" : "fullscreen"}</button
+    >
   </div>
 
   {#if loading}
